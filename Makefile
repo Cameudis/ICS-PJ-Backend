@@ -4,7 +4,7 @@
 #   3. `make dll`       make dll in windows     save to bin/
 #   4. `make clean`     clean all binary        /
 
-# flag
+# flag macros
 CXXFLAGS := $(CXXFLAGS)
 COBJFLAGS := $(CXXFLAGS) -c
 
@@ -61,7 +61,7 @@ debug: $(TARGET_DBG)
 .PHONY: dll
 dll: $(TARGET_DLL)
     @if [ "$(OS)" != "Windows_NT" ]; then \
-        echo "Error: Variables not set correctly"; exit 2; \
+        echo "Error: Please compile .dll in windows"; exit 2; \
     else true; fi
 
 .PHONY: clean
