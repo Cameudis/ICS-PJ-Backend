@@ -1,6 +1,6 @@
 #include "common.h"
 
-class reg {
+class Register {
 public:
     // reload [] to get 64-bit value by vaddr
     uint64_t& operator[](int id);
