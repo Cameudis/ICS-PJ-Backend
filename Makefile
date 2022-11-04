@@ -5,8 +5,10 @@
 #   4. `make clean`     clean all binary        /
 
 # flag macros
-CXXFLAGS := $(CXXFLAGS)
+CXXFLAGS := $(CXXFLAGS) -std=c++11
 COBJFLAGS := $(CXXFLAGS) -c
+NDBGFLAG := -DNDEBUG
+DBGFLAGS := -g
 
 # path macros
 BIN_PATH := bin
@@ -34,19 +36,19 @@ CLEAN_LIST := $(TARGET) $(TARGET_DBG) $(TARGET_DLL) $(OBJ) $(OBJ_DEBUG)
 
 # non-phony targets
 $(TARGET): $(OBJ)
-	$(CXX) $(OBJ) $(CXXFLAGS) -o $@
+	$(CXX) $(OBJ) $(CXXFLAGS) $(NDBGFLAG) -o $@
 
 $(TARGET_DBG): $(OBJ_DEBUG)
-	$(CXX) $(OBJ_DEBUG) $(CXXFLAGS) -g -o $@
+	$(CXX) $(OBJ_DEBUG) $(CXXFLAGS) $(DBGFLAGS) -o $@
 
 $(TARGET_DLL): $(OBJ)
-	$(CXX) $(OBJ) $(CXXFLAGS) -shared -o $@
+	$(CXX) $(OBJ) $(CXXFLAGS) $(NDBGFLAG) -shared -o $@
 
 $(OBJ_PATH)/%.o: $(SRC_PATH)/%.cpp
-	$(CXX) $(COBJFLAGS) -o $@ $<
+	$(CXX) $(COBJFLAGS) $(NDBGFLAG) -o $@ $<
 
 $(DBG_PATH)/%.o: $(SRC_PATH)/%.cpp
-	$(CXX) $(COBJFLAGS) -g -o $@ $<
+	$(CXX) $(COBJFLAGS) $(DBGFLAGS) -o $@ $<
 
 # default rule
 default: makedir all

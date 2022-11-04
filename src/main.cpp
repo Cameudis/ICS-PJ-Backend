@@ -1,8 +1,10 @@
-#include <iostream>
-using namespace std;
+#include <stdio.h>
+#include "common.h"
+// #include <iostream>
+// using namespace std;
 
-int main()
+extern "C" int main()
 {
-    cout << "Hello, world!";
+    assert(0);
     return 0;
 }
