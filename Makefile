@@ -32,9 +32,6 @@ OBJ_DEBUG := $(addprefix $(DBG_PATH)/, $(addsuffix .o, $(notdir $(basename $(SRC
 # clean files list
 CLEAN_LIST := $(TARGET) $(TARGET_DBG) $(TARGET_DLL) $(OBJ) $(OBJ_DEBUG)
 
-# default rule
-default: makedir all
-
 # non-phony targets
 $(TARGET): $(OBJ)
 	$(CXX) $(OBJ) $(CXXFLAGS) -o $@
@@ -51,6 +48,10 @@ $(OBJ_PATH)/%.o: $(SRC_PATH)/%.cpp
 $(DBG_PATH)/%.o: $(SRC_PATH)/%.cpp
 	$(CXX) $(COBJFLAGS) -g -o $@ $<
 
+# default rule
+default: makedir all
+
+
 # phony rules
 .PHONY: makedir
 makedir:
@@ -60,10 +61,10 @@ makedir:
 all: $(TARGET)
 
 .PHONY: debug
-debug: $(TARGET_DBG)
+debug: makedir $(TARGET_DBG)
 
 .PHONY: dll
-dll: $(TARGET_DLL)
+dll: makedir $(TARGET_DLL)
 	@if [ "$(OS)" != "Windows_NT" ]; then \
 		echo "Error: Please compile .dll in windows"; exit 2; \
 	else true; fi
