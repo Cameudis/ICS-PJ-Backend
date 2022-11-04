@@ -1,1 +1,1 @@
-#define MSIZE 0x80000000
+#define MSIZE 0x8000
