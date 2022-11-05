@@ -8,6 +8,7 @@ FUDAN ICS 2022Fall Project - Y86 Simulator
 ICS-PJ-Backend
 ├── bin             # 存放生成的二进制文件
 ├── debug           # 存放加入了调试信息的目标文件和二进制文件
+├── include         # 存放第三方库
 ├── obj             # 存放生成用到的目标文件
 ├── src             # 存放源码
 ├── Makefile
