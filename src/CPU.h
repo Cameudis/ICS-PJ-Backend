@@ -68,6 +68,9 @@ private:
         ins_pop,        // 0xb
     };
 
+    // CC judge
+    bool ccjudge(int icode);
+
     // CPU Composition
     Memory DMEM;
     word_t PC;

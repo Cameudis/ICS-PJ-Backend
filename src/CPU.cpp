@@ -55,16 +55,8 @@ int CPU::ins_nop(Instruction ins)
 
 int CPU::ins_rrmov(Instruction ins)
 {
-    int icode = ins[0] & 0xF0;
-    if (
-        !icode ||                                       // rrmovq
-        icode == 0x1 && ((CC.SF ^ CC.OF) | (CC.ZF)) ||  // cmovle
-        icode == 0x2 && (CC.SF ^ CC.OF) ||              // cmovl
-        icode == 0x3 && CC.ZF ||                        // cmove
-        icode == 0x4 && !CC.ZF ||                       // cmovne
-        icode == 0x5 && ~((CC.SF ^ CC.OF) | (CC.ZF)) || // cmovge
-        icode == 0x6 && ~(CC.SF ^ CC.OF)                // cmovg
-    ) {
+    int icode = (ins[0]>>4) & 0xF;
+    if (ccjudge(icode)) {
         int ra = ins[1] & 0x0F;
         int rb = ins[1] & 0xF0;
         RG[rb] = RG[ra];
@@ -74,7 +66,7 @@ int CPU::ins_rrmov(Instruction ins)
 
 int CPU::ins_irmov(Instruction ins)
 {
-    int rb = ins[1] & 0xF0;
+    int rb = (ins[1]>>4) & 0xF;
     RG[rb] = *(word_t*)(&ins[2]);
 
     return 2 + sizeof(word_t);
@@ -82,8 +74,8 @@ int CPU::ins_irmov(Instruction ins)
 
 int CPU::ins_rmmov(Instruction ins)
 {
-    int ra = ins[1] & 0x0F;
-    int rb = ins[1] & 0xF0;
+    int ra = ins[1] & 0xF;
+    int rb = (ins[1]>>4) & 0xF;
     word_t offset = *(word_t*)(&ins[2]);
     
     DMEM[offset + RG[rb]] = RG[ra];
@@ -93,8 +85,8 @@ int CPU::ins_rmmov(Instruction ins)
 
 int CPU::ins_mrmov(Instruction ins)
 {
-    int ra = ins[1] & 0x0F;
-    int rb = ins[1] & 0xF0;
+    int ra = ins[1] & 0xF;
+    int rb = (ins[1]>>4) & 0xF;
     word_t offset = *(word_t*)(&ins[2]);
     
     RG[ra] = DMEM[offset + RG[rb]];
@@ -104,9 +96,9 @@ int CPU::ins_mrmov(Instruction ins)
 
 int CPU::ins_op(Instruction ins)
 {
-    int icode = ins[0] & 0xF0;
-    int ra = ins[1] & 0x0F;
-    int rb = ins[1] & 0xF0;
+    int icode = (ins[0]>>4) & 0xF;
+    int ra = ins[1] & 0xF;
+    int rb = (ins[1]>>4) & 0xF;
 
     switch (icode) {
         case 0x0:
@@ -131,25 +123,60 @@ int CPU::ins_op(Instruction ins)
 
 int CPU::ins_jmp(Instruction ins)
 {
-    return 1 + sizeof(word_t);
+    int icode = (ins[0]>>4) & 0xF;
+
+    if (ccjudge(icode)) {
+        PC = *(word_t*)(&ins[1]);
+        return 0;
+    } else {
+        return 1 + sizeof(word_t);
+    }
 }
 
 int CPU::ins_call(Instruction ins)
 {
-    return 1 + sizeof(word_t);
+    RG[4] -= sizeof(word_t);                // update & push rip
+    DMEM[RG[4]] = PC + 1 + sizeof(word_t);
+    PC = *(word_t*)(&ins[1]);               // jmp addr
+
+    return 0;
 }
 
 int CPU::ins_ret(Instruction ins)
 {
-    return 1;
+    PC = DMEM[RG[4]];                       // pop rip
+    RG[4] += sizeof(word_t);
+
+    return 0;
 }
 
 int CPU::ins_push(Instruction ins)
 {
+    int ra = ins[1] & 0xF;
+
+    DMEM[RG[4] - sizeof(word_t)] = RG[ra];
+    RG[4] -= sizeof(word_t);
+
     return 2;
 }
 
 int CPU::ins_pop(Instruction ins)
 {
+    int ra = ins[1] & 0xF;
+
+    RG[ra] = DMEM[RG[4]];
+    RG[4] += sizeof(word_t);
+
     return 2;
+}
+
+bool CPU::ccjudge(int icode)
+{
+    return !icode ||                                    // rrmovq
+        icode == 0x1 && ((CC.SF ^ CC.OF) | (CC.ZF)) ||  // cmovle
+        icode == 0x2 && (CC.SF ^ CC.OF) ||              // cmovl
+        icode == 0x3 && CC.ZF ||                        // cmove
+        icode == 0x4 && !CC.ZF ||                       // cmovne
+        icode == 0x5 && ~((CC.SF ^ CC.OF) | (CC.ZF)) || // cmovge
+        icode == 0x6 && ~(CC.SF ^ CC.OF);               // cmovg
 }
