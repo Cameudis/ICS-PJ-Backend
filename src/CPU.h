@@ -6,6 +6,9 @@
 #include "Memory.h"
 #include <fstream>
 
+#include "include/json.hpp"
+using json = nlohmann::json;
+
 enum State {
     AOK = 1,    // Normal operation
     HLT = 2,    // Halt instruction encountered
@@ -31,7 +34,8 @@ public:
     void im_exec(Instruction ins);      // exec an immediate instruction
 
     // output
-    // TODO
+    json history;
+    void update_history();
 
 private:
     // exec without update PC

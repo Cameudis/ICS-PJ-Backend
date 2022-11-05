@@ -13,7 +13,8 @@ static const char* State_name[] = {
 
 CPU::CPU()
 {
-    
+    Stat = AOK;
+    PC = 0;
 }
 
 void CPU::load_prog(std::ifstream& infile)
@@ -46,6 +47,44 @@ void CPU::load_prog(std::ifstream& infile)
     }
 }
 
+// ---------- output ----------
+
+void CPU::update_history()
+{
+    static int ic = 0;  // instruction count
+    json crt;
+
+    // PC dump
+    crt["PC"] = PC;
+
+    // REG dump
+    for (int i = 0; i < 15; i++) {
+        crt["REG"][RG.get_reg_name(i)] = RG[i];
+    }
+
+    // CC dump
+    crt["CC"]["ZF"] = CC.ZF;
+    crt["CC"]["SF"] = CC.SF;
+    crt["CC"]["OF"] = CC.OF;
+
+    // STAT dump
+    crt["STAT"] = Stat;
+
+    // MEM dump
+    // waiting for Optimization!!!
+    for (word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
+        if (DMEM[vaddr]) {
+            char vaddr_str[10];
+            sprintf(vaddr_str, "%d", vaddr);
+
+            crt["MEM"][vaddr_str] = DMEM[vaddr];
+        }
+    }
+
+    // add to history
+    history[ic++] = crt;
+}
+
 // ---------- exec ----------
 
 void CPU::exec(int n)
@@ -55,6 +94,7 @@ void CPU::exec(int n)
         return;
     }
     for (int i = 0; i < n; i++) {
+        update_history();
         PC += exec_once(DMEM.get_ins(PC));
 
         if (Stat != AOK)
@@ -68,7 +108,7 @@ void CPU::exec(int n)
 
 int CPU::exec_once(Instruction ins)
 {
-    int ifunc = ins[0] & 0xF;
+    int ifunc = (ins[0]>>4) & 0xF;
 
     return (this->*(instab[ifunc]))(ins);
 }
@@ -107,10 +147,10 @@ int CPU::ins_nop(Instruction ins)
 
 int CPU::ins_rrmov(Instruction ins)
 {
-    int icode = (ins[0]>>4) & 0xF;
+    int icode = ins[0] & 0xF;
     if (ccjudge(icode)) {
-        int ra = ins[1] & 0x0F;
-        int rb = ins[1] & 0xF0;
+        int ra = (ins[1]>>4) & 0xF;
+        int rb = ins[1] & 0xF;
         RG[rb] = RG[ra];
     }
     return 2;
@@ -118,7 +158,7 @@ int CPU::ins_rrmov(Instruction ins)
 
 int CPU::ins_irmov(Instruction ins)
 {
-    int rb = (ins[1]>>4) & 0xF;
+    int rb = ins[1] & 0xF;
     RG[rb] = *(word_t*)(&ins[2]);
 
     return 2 + sizeof(word_t);
@@ -126,8 +166,8 @@ int CPU::ins_irmov(Instruction ins)
 
 int CPU::ins_rmmov(Instruction ins)
 {
-    int ra = ins[1] & 0xF;
-    int rb = (ins[1]>>4) & 0xF;
+    int ra = (ins[1]>>4) & 0xF;
+    int rb = ins[1] & 0xF;
     word_t offset = *(word_t*)(&ins[2]);
     
     DMEM[offset + RG[rb]] = RG[ra];
@@ -137,8 +177,8 @@ int CPU::ins_rmmov(Instruction ins)
 
 int CPU::ins_mrmov(Instruction ins)
 {
-    int ra = ins[1] & 0xF;
-    int rb = (ins[1]>>4) & 0xF;
+    int ra = (ins[1]>>4) & 0xF;
+    int rb = ins[1] & 0xF;
     word_t offset = *(word_t*)(&ins[2]);
     
     RG[ra] = DMEM[offset + RG[rb]];
@@ -148,9 +188,9 @@ int CPU::ins_mrmov(Instruction ins)
 
 int CPU::ins_op(Instruction ins)
 {
-    int icode = (ins[0]>>4) & 0xF;
-    int ra = ins[1] & 0xF;
-    int rb = (ins[1]>>4) & 0xF;
+    int icode = ins[0] & 0xF;
+    int ra = (ins[1]>>4) & 0xF;
+    int rb = ins[1] & 0xF;
 
     switch (icode) {
         case 0x0:
@@ -175,7 +215,7 @@ int CPU::ins_op(Instruction ins)
 
 int CPU::ins_jmp(Instruction ins)
 {
-    int icode = (ins[0]>>4) & 0xF;
+    int icode = ins[0] & 0xF;
 
     if (ccjudge(icode)) {
         PC = *(word_t*)(&ins[1]);
@@ -204,7 +244,7 @@ int CPU::ins_ret(Instruction ins)
 
 int CPU::ins_push(Instruction ins)
 {
-    int ra = ins[1] & 0xF;
+    int ra = (ins[1]>>4) & 0xF;
 
     DMEM[RG[4] - sizeof(word_t)] = RG[ra];
     RG[4] -= sizeof(word_t);
@@ -214,7 +254,7 @@ int CPU::ins_push(Instruction ins)
 
 int CPU::ins_pop(Instruction ins)
 {
-    int ra = ins[1] & 0xF;
+    int ra = (ins[1]>>4) & 0xF;
 
     RG[ra] = DMEM[RG[4]];
     RG[4] += sizeof(word_t);

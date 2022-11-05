@@ -1,4 +1,4 @@
-#include <cstdio>
+#include <iostream>
 using namespace std;
 
 #include "CPU.h"
@@ -9,6 +9,11 @@ int main()
 {
     ifstream infile("test/prog1.yo");
     cpu.load_prog(infile);
+
+    cpu.exec(114514);
+
+    ofstream o("history.json");
+    o << setw(4) << cpu.history << endl;
 
     return 0;
 }
