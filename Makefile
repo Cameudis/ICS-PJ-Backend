@@ -1,6 +1,6 @@
 # Usage:
 #   1. `make`           executable              save to bin/
-#   2. `make debug`     debug (add -g)          save to debug/
+#   2. `make debug`     debug                   save to debug/
 #   3. `make dll`       make dll in windows     save to bin/
 #   4. `make clean`     clean all binary        /
 
