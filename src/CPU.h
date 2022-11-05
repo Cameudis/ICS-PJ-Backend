@@ -3,14 +3,14 @@
 #include "Memory.h"
 #include <fstream>
 
-enum state {
+enum State {
     AOK = 1,    // Normal operation
     HLT = 2,    // Halt instruction encountered
     ADR = 3,    // Invalid address encountered
     INS = 4,    // Invalid instruction encountered
 };
 
-struct condition_code {
+struct Condition_code {
     bool ZF;
     bool OF;
     bool SF;
@@ -29,8 +29,8 @@ public:
 
 private:
     Memory DMEM;
-    uint64_t PC;
-    state Stat;
-    condition_code CC;
+    word_t PC;
+    State Stat;
+    Condition_code CC;
     Register RG;
 };
