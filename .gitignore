@@ -33,3 +33,6 @@
 
 # vscode configure & others
 .*/*
+
+# output
+history.json
