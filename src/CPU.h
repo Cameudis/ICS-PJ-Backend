@@ -10,6 +10,14 @@ enum State {
     INS = 4,    // Invalid instruction encountered
 };
 
+const char* State_name[] = {
+    "NULL",     // 0
+    "AOK",      // 1
+    "HLT",      // 2
+    "ADR",      // 3
+    "INS"       // 4
+};
+
 struct Condition_code {
     bool ZF;
     bool OF;
@@ -50,6 +58,7 @@ private:
     int ins_ret(Instruction ins);
     int ins_push(Instruction ins);
     int ins_pop(Instruction ins);
+    int ins_null_handler(Instruction ins);
 
     // numbering instructions
     // you can modify ins's ID by simply change the order here
@@ -66,6 +75,10 @@ private:
         ins_ret,        // 0x9
         ins_push,       // 0xa
         ins_pop,        // 0xb
+        ins_null_handler,
+        ins_null_handler,
+        ins_null_handler,
+        ins_null_handler,
     };
 
     // CC judge

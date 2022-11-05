@@ -9,10 +9,28 @@ CPU::CPU()
 
 void CPU::load_prog(std::ifstream& infile)
 {
-
+    
 }
 
 // ---------- exec ----------
+
+void CPU::exec(int n)
+{
+    if (Stat != AOK) {
+        printf("EXEC FAIL (Stat: %s)\n", State_name[Stat]);
+        return;
+    }
+    for (int i = 0; i < n; i++) {
+        PC += exec_once(DMEM.get_ins(PC));
+
+        if (Stat != AOK)
+            break;
+    }
+    if (Stat != AOK) {
+        printf("EXEC HALT (Stat: %s)\n", State_name[Stat]);
+        return;
+    }
+}
 
 int CPU::exec_once(Instruction ins)
 {
@@ -170,13 +188,19 @@ int CPU::ins_pop(Instruction ins)
     return 2;
 }
 
+int CPU::ins_null_handler(Instruction ins)
+{
+    Stat = INS;
+    return 0;
+}
+
 bool CPU::ccjudge(int icode)
 {
-    return !icode ||                                    // rrmovq
-        icode == 0x1 && ((CC.SF ^ CC.OF) | (CC.ZF)) ||  // cmovle
-        icode == 0x2 && (CC.SF ^ CC.OF) ||              // cmovl
-        icode == 0x3 && CC.ZF ||                        // cmove
-        icode == 0x4 && !CC.ZF ||                       // cmovne
-        icode == 0x5 && ~((CC.SF ^ CC.OF) | (CC.ZF)) || // cmovge
-        icode == 0x6 && ~(CC.SF ^ CC.OF);               // cmovg
+    return !icode ||                                    // no condition
+        icode == 0x1 && ((CC.SF ^ CC.OF) | (CC.ZF)) ||  // le
+        icode == 0x2 && (CC.SF ^ CC.OF) ||              // l
+        icode == 0x3 && CC.ZF ||                        // e
+        icode == 0x4 && !CC.ZF ||                       // ne
+        icode == 0x5 && ~((CC.SF ^ CC.OF) | (CC.ZF)) || // ge
+        icode == 0x6 && ~(CC.SF ^ CC.OF);               // g
 }
