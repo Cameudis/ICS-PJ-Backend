@@ -1,3 +1,6 @@
+#ifndef __MEMORY_H
+#define __MEMORY_H
+
 #include "common.h"
 
 class Memory {
@@ -16,3 +19,5 @@ private:
     // memory
     uint8_t mem[MSIZE] = {};
 };
+
+#endif

@@ -1,3 +1,6 @@
+#ifndef __REGISTER_H
+#define __REGISTER_H
+
 #include "common.h"
 
 class Register {
@@ -16,3 +19,5 @@ private:
         "r12",  "r13",  "r14",  "NULL"
     };
 };
+
+#endif

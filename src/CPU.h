@@ -1,3 +1,6 @@
+#ifndef __CPU_H
+#define __CPU_H
+
 #include "common.h"
 #include "Register.h"
 #include "Memory.h"
@@ -8,14 +11,6 @@ enum State {
     HLT = 2,    // Halt instruction encountered
     ADR = 3,    // Invalid address encountered
     INS = 4,    // Invalid instruction encountered
-};
-
-const char* State_name[] = {
-    "NULL",     // 0
-    "AOK",      // 1
-    "HLT",      // 2
-    "ADR",      // 3
-    "INS"       // 4
 };
 
 struct Condition_code {
@@ -62,7 +57,7 @@ private:
 
     // numbering instructions
     // you can modify ins's ID by simply change the order here
-    InsPtr instab[0xf] = {
+    InsPtr instab[0x10] = {
         ins_halt,       // 0x0
         ins_nop,        // 0x1
         ins_rrmov,      // 0x2
@@ -91,3 +86,5 @@ private:
     Condition_code CC;
     Register RG;
 };
+
+#endif
