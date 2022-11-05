@@ -1,4 +1,13 @@
 #include "CPU.h"
+#include <cstring>
+
+static const char* State_name[] = {
+    "NULL",     // 0
+    "AOK",      // 1
+    "HLT",      // 2
+    "ADR",      // 3
+    "INS"       // 4
+};
 
 // ---------- init ----------
 
@@ -9,7 +18,32 @@ CPU::CPU()
 
 void CPU::load_prog(std::ifstream& infile)
 {
-    
+    char str[100];
+    word_t vaddr = 0;
+
+    char byte_s[3] = "00";
+    uint8_t byte;
+
+    while (!infile.eof()) {
+        // read instruction
+        infile.getline(str, 100, '|');
+
+        char* ins_str = strchr(str, ':');
+        if (ins_str) {
+            ins_str += 2;   // jmp ": "
+
+            while (*ins_str && !isspace(*ins_str)) {
+                strncpy(byte_s, ins_str, 2);
+                sscanf(byte_s, "%x", &byte);
+                *DMEM.v2raddr(vaddr++) = byte;
+
+                ins_str += 2;
+            }
+        }
+
+        // jmp asm/comments
+        infile.getline(str, 100, '\n');
+    }
 }
 
 // ---------- exec ----------
