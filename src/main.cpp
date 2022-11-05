@@ -1,10 +1,14 @@
-#include <stdio.h>
-#include "common.h"
-// #include <iostream>
-// using namespace std;
+#include <cstdio>
+using namespace std;
 
-extern "C" int main()
+#include "CPU.h"
+
+static CPU cpu;
+
+int main()
 {
-    assert(0);
+    ifstream infile("test/prog1.yo");
+    cpu.load_prog(infile);
+
     return 0;
 }
