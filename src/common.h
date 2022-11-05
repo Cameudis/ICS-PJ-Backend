@@ -6,6 +6,7 @@
 #include "config.h"
 
 typedef uint64_t word_t;
+typedef int64_t sword_t;
 typedef uint8_t* Instruction;   // instrction typedef
 
 #endif

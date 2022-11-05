@@ -26,7 +26,7 @@ class CPU {
 public:
     // init
     CPU();
-    void load_prog(std::ifstream& infile);
+    void load_prog(std::istream& infile);
 
     // exec
     void exec(int n);

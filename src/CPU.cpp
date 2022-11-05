@@ -17,7 +17,7 @@ CPU::CPU()
     PC = 0;
 }
 
-void CPU::load_prog(std::ifstream& infile)
+void CPU::load_prog(std::istream& infile)
 {
     char str[100];
     word_t vaddr = 0;
@@ -90,7 +90,7 @@ void CPU::update_history()
 void CPU::exec(int n)
 {
     if (Stat != AOK) {
-        printf("EXEC FAIL (Stat: %s)\n", State_name[Stat]);
+        fprintf(stderr, "EXEC FAIL (Stat: %s)\n", State_name[Stat]);
         return;
     }
     for (int i = 0; i < n; i++) {
@@ -101,7 +101,7 @@ void CPU::exec(int n)
             break;
     }
     if (Stat != AOK) {
-        printf("EXEC HALT (Stat: %s)\n", State_name[Stat]);
+        fprintf(stderr, "EXEC HALT (Stat: %s)\n", State_name[Stat]);
         return;
     }
 }
@@ -192,6 +192,7 @@ int CPU::ins_op(Instruction ins)
     int ra = (ins[1]>>4) & 0xF;
     int rb = ins[1] & 0xF;
 
+    sword_t b = RG[rb];         // temp save for condition code setting
     switch (icode) {
         case 0x0:
             RG[rb] += RG[ra];
@@ -209,6 +210,18 @@ int CPU::ins_op(Instruction ins)
         default:
             assert(0);
     }
+
+    // set CC
+    sword_t a = RG[ra];
+    sword_t result = RG[rb];
+    if (a >= 0 && b >= 0 && result < a ||
+        a <= 0 && b <= 0 && result > a) {
+        CC.OF = 1;
+    } else {
+        CC.OF = 0;
+    }
+    CC.SF = result < 0;
+    CC.ZF = result == 0;
 
     return 2;
 }
