@@ -108,9 +108,9 @@ void CPU::exec(int n)
 
 int CPU::exec_once(Instruction ins)
 {
-    int ifunc = (ins[0]>>4) & 0xF;
+    int icode = (ins[0]>>4) & 0xF;
 
-    return (this->*(instab[ifunc]))(ins);
+    return (this->*(instab[icode]))(ins);
 }
 
 int CPU::ins_halt(Instruction ins)
@@ -147,8 +147,8 @@ int CPU::ins_nop(Instruction ins)
 
 int CPU::ins_rrmov(Instruction ins)
 {
-    int icode = ins[0] & 0xF;
-    if (ccjudge(icode)) {
+    int ifunc = ins[0] & 0xF;
+    if (ccjudge(ifunc)) {
         int ra = (ins[1]>>4) & 0xF;
         int rb = ins[1] & 0xF;
         RG[rb] = RG[ra];
@@ -188,12 +188,12 @@ int CPU::ins_mrmov(Instruction ins)
 
 int CPU::ins_op(Instruction ins)
 {
-    int icode = ins[0] & 0xF;
+    int ifunc = ins[0] & 0xF;
     int ra = (ins[1]>>4) & 0xF;
     int rb = ins[1] & 0xF;
 
     sword_t b = RG[rb];         // temp save for condition code setting
-    switch (icode) {
+    switch (ifunc) {
         case 0x0:
             RG[rb] += RG[ra];
             break;
@@ -228,9 +228,9 @@ int CPU::ins_op(Instruction ins)
 
 int CPU::ins_jmp(Instruction ins)
 {
-    int icode = ins[0] & 0xF;
+    int ifunc = ins[0] & 0xF;
 
-    if (ccjudge(icode)) {
+    if (ccjudge(ifunc)) {
         PC = *(word_t*)(&ins[1]);
         return 0;
     } else {
@@ -281,13 +281,13 @@ int CPU::ins_null_handler(Instruction ins)
     return 0;
 }
 
-bool CPU::ccjudge(int icode)
+bool CPU::ccjudge(int ifunc)
 {
-    return !icode ||                                    // no condition
-        icode == 0x1 && ((CC.SF ^ CC.OF) | (CC.ZF)) ||  // le
-        icode == 0x2 && (CC.SF ^ CC.OF) ||              // l
-        icode == 0x3 && CC.ZF ||                        // e
-        icode == 0x4 && !CC.ZF ||                       // ne
-        icode == 0x5 && ~((CC.SF ^ CC.OF) | (CC.ZF)) || // ge
-        icode == 0x6 && ~(CC.SF ^ CC.OF);               // g
+    return !ifunc ||                                    // no condition
+        ifunc == 0x1 && ((CC.SF ^ CC.OF) | (CC.ZF)) ||  // le
+        ifunc == 0x2 && (CC.SF ^ CC.OF) ||              // l
+        ifunc == 0x3 && CC.ZF ||                        // e
+        ifunc == 0x4 && !CC.ZF ||                       // ne
+        ifunc == 0x5 && ~((CC.SF ^ CC.OF) | (CC.ZF)) || // ge
+        ifunc == 0x6 && ~(CC.SF ^ CC.OF);               // g
 }
