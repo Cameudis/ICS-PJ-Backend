@@ -240,8 +240,8 @@ int CPU::ins_jmp(Instruction ins)
 
 int CPU::ins_call(Instruction ins)
 {
-    RG[4] -= sizeof(word_t);                // update & push rip
-    DMEM[RG[4]] = PC + 1 + sizeof(word_t);
+    RG[rsp] -= sizeof(word_t);                // update & push rip
+    DMEM[RG[rsp]] = PC + 1 + sizeof(word_t);
     PC = *(word_t*)(&ins[1]);               // jmp addr
 
     return 0;
@@ -249,8 +249,8 @@ int CPU::ins_call(Instruction ins)
 
 int CPU::ins_ret(Instruction ins)
 {
-    PC = DMEM[RG[4]];                       // pop rip
-    RG[4] += sizeof(word_t);
+    PC = DMEM[RG[rsp]];                       // pop rip
+    RG[rsp] += sizeof(word_t);
 
     return 0;
 }
@@ -259,8 +259,8 @@ int CPU::ins_push(Instruction ins)
 {
     int ra = (ins[1]>>4) & 0xF;
 
-    DMEM[RG[4] - sizeof(word_t)] = RG[ra];
-    RG[4] -= sizeof(word_t);
+    DMEM[RG[rsp] - sizeof(word_t)] = RG[ra];
+    RG[rsp] -= sizeof(word_t);
 
     return 2;
 }
@@ -269,8 +269,8 @@ int CPU::ins_pop(Instruction ins)
 {
     int ra = (ins[1]>>4) & 0xF;
 
-    RG[ra] = DMEM[RG[4]];
-    RG[4] += sizeof(word_t);
+    RG[ra] = DMEM[RG[rsp]];
+    RG[rsp] += sizeof(word_t);
 
     return 2;
 }
