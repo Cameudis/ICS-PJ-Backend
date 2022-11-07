@@ -1,5 +1,8 @@
 #include "CPU.h"
 #include <cstring>
+#include <map>
+#include <string>
+using std::map; using std::string;
 
 static const char* State_name[] = {
     "NULL",     // 0
@@ -45,13 +48,14 @@ void CPU::load_prog(std::istream& infile)
         // jmp asm/comments
         infile.getline(str, 100, '\n');
     }
+
+    update_history();
 }
 
 // ---------- output ----------
 
 void CPU::update_history()
 {
-    static int ic = 0;  // instruction count
     json crt;
 
     // PC dump
@@ -82,28 +86,67 @@ void CPU::update_history()
     }
 
     // add to history
-    history[ic++] = crt;
+    history.push_back(crt);
 }
 
 // ---------- exec ----------
 
-void CPU::exec(int n)
+void CPU::exec(unsigned int n)
 {
     if (Stat != AOK) {
         fprintf(stderr, "EXEC FAIL (Stat: %s)\n", State_name[Stat]);
         return;
     }
     for (int i = 0; i < n; i++) {
-        update_history();
         PC += exec_once(DMEM.get_ins(PC));
+        update_history();
 
-        if (Stat != AOK)
+        if (Stat != AOK) {
             break;
+        }
     }
     if (Stat != AOK) {
         fprintf(stderr, "EXEC HALT (Stat: %s)\n", State_name[Stat]);
         return;
     }
+}
+
+void CPU::back(unsigned int n)
+{
+    unsigned int des_id = history.size() - 1 - n;
+    if ((int)des_id < 0) {
+        fprintf(stderr, "ERROR: back too much");
+    }
+
+    // recover state
+    memset(&DMEM[0], 0, MSIZE);
+
+    PC = history[des_id]["PC"];
+
+    for (int i = 0; i < 15; i++) {
+        RG[i] = history[des_id]["REG"][RG.get_reg_name(i)];
+    }
+
+    CC.ZF = history[des_id]["CC"]["ZF"];
+    CC.SF = history[des_id]["CC"]["SF"];
+    CC.OF = history[des_id]["CC"]["OF"];
+
+    Stat = history[des_id]["STAT"];
+
+    map<string, word_t> mem2val = history[des_id]["MEM"].get<map<string, word_t>>();
+    for (auto& x: mem2val) {
+        word_t addr;
+        sscanf(x.first.c_str(), "%ld", &addr);
+        DMEM[addr] = x.second;
+    }
+
+    // delete further states
+    history.erase(history.begin()+ des_id + 1, history.end());
+}
+
+void CPU::im_exec(Instruction ins)
+{
+    exec_once(ins);
 }
 
 int CPU::exec_once(Instruction ins)

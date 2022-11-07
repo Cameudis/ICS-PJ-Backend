@@ -29,8 +29,8 @@ public:
     void load_prog(std::istream& infile);
 
     // exec
-    void exec(int n);
-    void back(int n);
+    void exec(unsigned int n);
+    void back(unsigned int n);
     void im_exec(Instruction ins);      // exec an immediate instruction
 
     // output

@@ -29,6 +29,8 @@ TARGET_DLL := $(addsuffix .dll,$(BIN_PATH)/$(TARGET_NAME))
 # src files & obj files
 SRC := $(foreach x, $(SRC_PATH), $(wildcard $(addprefix $(x)/*,.cpp)))
 OBJ := $(addprefix $(OBJ_PATH)/, $(addsuffix .o, $(notdir $(basename $(SRC)))))
+OBJ_DLL := $(filter-out obj/main.o,$(OBJ))
+OBJ := $(filter-out obj/api.o,$(OBJ))
 OBJ_DEBUG := $(addprefix $(DBG_PATH)/, $(addsuffix .o, $(notdir $(basename $(SRC)))))
 
 # clean files list
@@ -41,8 +43,8 @@ $(TARGET): $(OBJ)
 $(TARGET_DBG): $(OBJ_DEBUG)
 	$(CXX) $(OBJ_DEBUG) $(CXXFLAGS) $(DBGFLAGS) -o $@
 
-$(TARGET_DLL): $(OBJ)
-	$(CXX) $(OBJ) $(CXXFLAGS) $(NDBGFLAG) -shared -o $@
+$(TARGET_DLL): $(OBJ_DLL)
+	$(CXX) $(OBJ_DLL) $(CXXFLAGS) $(NDBGFLAG) -shared -o $@
 
 $(OBJ_PATH)/%.o: $(SRC_PATH)/%.cpp
 	$(CXX) $(COBJFLAGS) $(NDBGFLAG) -o $@ $<
