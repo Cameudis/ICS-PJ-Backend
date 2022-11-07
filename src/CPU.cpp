@@ -140,7 +140,7 @@ void CPU::back(unsigned int n)
         DMEM[addr] = x.second;
     }
 
-    // delete further states
+    // 上白沢慧音 転世「一条戻り橋」
     history.erase(history.begin()+ des_id + 1, history.end());
 }
 
