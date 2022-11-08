@@ -24,26 +24,48 @@ struct Condition_code {
 
 class CPU {
 public:
-    // init
+    // --- init ---
     CPU();
     void load_prog(std::istream& infile);
 
-    // exec
-    void exec(unsigned int n);
-    void back(unsigned int n);
-    void im_exec(Instruction ins);      // exec an immediate instruction
+    // --- exec ---
 
-    // output
+    // exec n steps, update (json)history and PC
+    void exec(unsigned int n);
+
+    // back n steps, recover (json)history and all states
+    void back(unsigned int n);
+
+    // SP: exec an immediate instruction, keep PC, update (json)history
+    void im_exec(Instruction ins);
+
+    // --- output ---
     json history;
     void update_history();
 
 private:
-    // exec without update PC
-    // return length of ins
+
+    // --- CPU Composition ---
+
+    // States
+    Memory DMEM;
+    word_t PC;
+    State Stat;
+    Condition_code CC;
+    Register RG;
+    
+    // CND calculator (a part of ALU)
+    bool calc_cnd(int icode);
+    
+    // --- instruction ---
+    typedef int (CPU::*InsPtr)(Instruction);
+
+    // --- instruction handler ---
+
+    // exec without update PC, return length of ins
     int exec_once(Instruction ins);
 
-    // instructions
-    typedef int (CPU::*InsPtr)(Instruction);
+    // --- instruction implementation ---
 
     int ins_halt(Instruction ins);
     int ins_nop(Instruction ins);
@@ -59,36 +81,27 @@ private:
     int ins_pop(Instruction ins);
     int ins_null_handler(Instruction ins);
 
-    // numbering instructions
-    // you can modify ins's ID by simply change the order here
+    // --- instruction encode (icode) ---
+
     InsPtr instab[0x10] = {
-        ins_halt,       // 0x0
-        ins_nop,        // 0x1
-        ins_rrmov,      // 0x2
-        ins_irmov,      // 0x3
-        ins_rmmov,      // 0x4
-        ins_mrmov,      // 0x5
-        ins_op,         // 0x6
-        ins_jmp,        // 0x7
-        ins_call,       // 0x8
-        ins_ret,        // 0x9
-        ins_push,       // 0xa
-        ins_pop,        // 0xb
+        ins_halt,           // 0x0
+        ins_nop,            // 0x1
+        ins_rrmov,          // 0x2
+        ins_irmov,          // 0x3
+        ins_rmmov,          // 0x4
+        ins_mrmov,          // 0x5
+        ins_op,             // 0x6
+        ins_jmp,            // 0x7
+        ins_call,           // 0x8
+        ins_ret,            // 0x9
+        ins_push,           // 0xa
+        ins_pop,            // 0xb
         ins_null_handler,
         ins_null_handler,
         ins_null_handler,
         ins_null_handler,
     };
 
-    // CC judge
-    bool ccjudge(int icode);
-
-    // CPU Composition
-    Memory DMEM;
-    word_t PC;
-    State Stat;
-    Condition_code CC;
-    Register RG;
 };
 
 #endif

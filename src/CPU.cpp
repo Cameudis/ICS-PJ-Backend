@@ -191,7 +191,7 @@ int CPU::ins_nop(Instruction ins)
 int CPU::ins_rrmov(Instruction ins)
 {
     int ifunc = ins[0] & 0xF;
-    if (ccjudge(ifunc)) {
+    if (calc_cnd(ifunc)) {
         int ra = (ins[1]>>4) & 0xF;
         int rb = ins[1] & 0xF;
         RG[rb] = RG[ra];
@@ -273,7 +273,7 @@ int CPU::ins_jmp(Instruction ins)
 {
     int ifunc = ins[0] & 0xF;
 
-    if (ccjudge(ifunc)) {
+    if (calc_cnd(ifunc)) {
         PC = *(word_t*)(&ins[1]);
         return 0;
     } else {
@@ -324,7 +324,7 @@ int CPU::ins_null_handler(Instruction ins)
     return 0;
 }
 
-bool CPU::ccjudge(int ifunc)
+bool CPU::calc_cnd(int ifunc)
 {
     return !ifunc ||                                    // no condition
         ifunc == 0x1 && ((CC.SF ^ CC.OF) | (CC.ZF)) ||  // le
