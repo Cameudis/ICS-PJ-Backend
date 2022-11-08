@@ -98,6 +98,10 @@ void CPU::exec(unsigned int n)
         return;
     }
     for (int i = 0; i < n; i++) {
+        if (!addr_check(PC)) {
+            break;
+        }
+
         PC += exec_once(DMEM.get_ins(PC));
         update_history();
 
@@ -213,6 +217,8 @@ int CPU::ins_rmmov(Instruction ins)
     int rb = ins[1] & 0xF;
     word_t offset = *(word_t*)(&ins[2]);
     
+    if (!addr_check(offset + RG[rb]))   return 0;
+
     DMEM[offset + RG[rb]] = RG[ra];
 
     return 2 + sizeof(word_t);
@@ -223,6 +229,8 @@ int CPU::ins_mrmov(Instruction ins)
     int ra = (ins[1]>>4) & 0xF;
     int rb = ins[1] & 0xF;
     word_t offset = *(word_t*)(&ins[2]);
+
+    if (!addr_check(offset + RG[rb]))   return 0;
     
     RG[ra] = DMEM[offset + RG[rb]];
 
@@ -292,6 +300,8 @@ int CPU::ins_call(Instruction ins)
 
 int CPU::ins_ret(Instruction ins)
 {
+    if (!addr_check(RG[rsp]))   return 0;
+
     PC = DMEM[RG[rsp]];                       // pop rip
     RG[rsp] += sizeof(word_t);
 
@@ -300,6 +310,8 @@ int CPU::ins_ret(Instruction ins)
 
 int CPU::ins_push(Instruction ins)
 {
+    if (!addr_check(RG[rsp] - sizeof(word_t)))  return 0;
+
     int ra = (ins[1]>>4) & 0xF;
 
     DMEM[RG[rsp] - sizeof(word_t)] = RG[ra];
@@ -310,6 +322,8 @@ int CPU::ins_push(Instruction ins)
 
 int CPU::ins_pop(Instruction ins)
 {
+    if (!addr_check(RG[rsp]))   return 0;
+
     int ra = (ins[1]>>4) & 0xF;
 
     RG[ra] = DMEM[RG[rsp]];
@@ -333,4 +347,14 @@ bool CPU::calc_cnd(int ifunc)
         ifunc == 0x4 && !CC.ZF ||                       // ne
         ifunc == 0x5 && ~((CC.SF ^ CC.OF) | (CC.ZF)) || // ge
         ifunc == 0x6 && ~(CC.SF ^ CC.OF);               // g
+}
+
+bool CPU::addr_check(word_t vaddr)
+{
+    if (vaddr > MSIZE) {
+        Stat = ADR;
+        return false;
+    } else {
+        return true;
+    }
 }

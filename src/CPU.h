@@ -57,6 +57,9 @@ private:
     // CND calculator (a part of ALU)
     bool calc_cnd(int icode);
     
+    // maybe a part of CPU...? Whatever
+    bool addr_check(word_t vaddr);
+    
     // --- instruction ---
     typedef int (CPU::*InsPtr)(Instruction);
 
