@@ -13,12 +13,12 @@ enum {
 class Register {
 public:
     // reload [] to get 64-bit value by vaddr
-    word_t& operator[](int id);
+    _word_t& operator[](int id);
 
     const char* get_reg_name(int id) const;
 
 private:
-    word_t regs[16];
+    _word_t regs[16];
     const char* reg_name[16] = {
         "rax",  "rcx",  "rdx",  "rbx",
         "rsp",  "rbp",  "rsi",  "rdi",

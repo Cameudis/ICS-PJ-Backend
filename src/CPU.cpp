@@ -17,13 +17,13 @@ static const char* State_name[] = {
 CPU::CPU()
 {
     Stat = AOK;
+    CC.ZF = 1;
     PC = 0;
 }
 
 void CPU::load_prog(std::istream& infile)
 {
     char str[100];
-    word_t vaddr = 0;
 
     char byte_s[3] = "00";
     uint8_t byte;
@@ -32,24 +32,32 @@ void CPU::load_prog(std::istream& infile)
         // read instruction
         infile.getline(str, 100, '|');
 
+        // fprintf(stderr, "\n'%s'", str);
+
         char* ins_str = strchr(str, ':');
         if (ins_str) {
+            _word_t vaddr = 0;
+            sscanf(str, "%x", &vaddr);
+
+            // fprintf(stderr, "0x%03llx: ", vaddr);
+
             ins_str += 2;   // jmp ": "
 
-            while (*ins_str && !isspace(*ins_str)) {
-                strncpy(byte_s, ins_str, 2);
+            while (isalnum(*ins_str)) {
+                byte_s[0] = ins_str[0];
+                byte_s[1] = ins_str[1];
+                byte_s[2] = '\0';
+                // fputs(byte_s, stderr);
                 sscanf(byte_s, "%x", &byte);
                 *DMEM.v2raddr(vaddr++) = byte;
 
                 ins_str += 2;
             }
         }
-
-        // jmp asm/comments
-        infile.getline(str, 100, '\n');
+        infile.getline(str, 100);
     }
 
-    update_history();
+    // update_history();
 }
 
 // ---------- output ----------
@@ -63,25 +71,25 @@ void CPU::update_history()
 
     // REG dump
     for (int i = 0; i < 15; i++) {
-        crt["REG"][RG.get_reg_name(i)] = RG[i];
+        crt["REG"][RG.get_reg_name(i)] = (int64_t)RG[i];
     }
 
     // CC dump
-    crt["CC"]["ZF"] = CC.ZF;
-    crt["CC"]["SF"] = CC.SF;
-    crt["CC"]["OF"] = CC.OF;
+    crt["CC"]["OF"] = (int)CC.OF;
+    crt["CC"]["SF"] = (int)CC.SF;
+    crt["CC"]["ZF"] = (int)CC.ZF;
 
     // STAT dump
     crt["STAT"] = Stat;
 
     // MEM dump
     // waiting for Optimization!!!
-    for (word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
+    for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
         if (DMEM[vaddr]) {
             char vaddr_str[10];
             sprintf(vaddr_str, "%d", vaddr);
 
-            crt["MEM"][vaddr_str] = DMEM[vaddr];
+            crt["MEM"][vaddr_str] = (int64_t)DMEM[vaddr];
         }
     }
 
@@ -94,7 +102,7 @@ void CPU::update_history()
 void CPU::exec(unsigned int n)
 {
     if (Stat != AOK) {
-        fprintf(stderr, "EXEC FAIL (Stat: %s)\n", State_name[Stat]);
+        // fprintf(stderr, "EXEC FAIL (Stat: %s)\n", State_name[Stat]);
         return;
     }
     for (int i = 0; i < n; i++) {
@@ -110,7 +118,7 @@ void CPU::exec(unsigned int n)
         }
     }
     if (Stat != AOK) {
-        fprintf(stderr, "EXEC HALT (Stat: %s)\n", State_name[Stat]);
+        // fprintf(stderr, "EXEC HALT (Stat: %s)\n", State_name[Stat]);
         return;
     }
 }
@@ -137,9 +145,9 @@ void CPU::back(unsigned int n)
 
     Stat = history[des_id]["STAT"];
 
-    map<string, word_t> mem2val = history[des_id]["MEM"].get<map<string, word_t>>();
+    map<string, _word_t> mem2val = history[des_id]["MEM"].get<map<string, _word_t>>();
     for (auto& x: mem2val) {
-        word_t addr;
+        _word_t addr;
         sscanf(x.first.c_str(), "%ld", &addr);
         DMEM[addr] = x.second;
     }
@@ -163,7 +171,7 @@ int CPU::exec_once(Instruction ins)
 int CPU::ins_halt(Instruction ins)
 {
     Stat = HLT;
-    return 1;
+    return 0;
 }
 
 int CPU::ins_nop(Instruction ins)
@@ -194,8 +202,8 @@ int CPU::ins_nop(Instruction ins)
 
 int CPU::ins_rrmov(Instruction ins)
 {
-    int ifunc = ins[0] & 0xF;
-    if (calc_cnd(ifunc)) {
+    int ifun = ins[0] & 0xF;
+    if (calc_cnd(ifun)) {
         int ra = (ins[1]>>4) & 0xF;
         int rb = ins[1] & 0xF;
         RG[rb] = RG[ra];
@@ -206,71 +214,85 @@ int CPU::ins_rrmov(Instruction ins)
 int CPU::ins_irmov(Instruction ins)
 {
     int rb = ins[1] & 0xF;
-    RG[rb] = *(word_t*)(&ins[2]);
+    RG[rb] = *(_word_t*)(&ins[2]);
 
-    return 2 + sizeof(word_t);
+    return 2 + sizeof(_word_t);
 }
 
 int CPU::ins_rmmov(Instruction ins)
 {
     int ra = (ins[1]>>4) & 0xF;
     int rb = ins[1] & 0xF;
-    word_t offset = *(word_t*)(&ins[2]);
+    _word_t offset = *(_word_t*)(&ins[2]);
     
     if (!addr_check(offset + RG[rb]))   return 0;
 
     DMEM[offset + RG[rb]] = RG[ra];
 
-    return 2 + sizeof(word_t);
+    return 2 + sizeof(_word_t);
 }
 
 int CPU::ins_mrmov(Instruction ins)
 {
     int ra = (ins[1]>>4) & 0xF;
     int rb = ins[1] & 0xF;
-    word_t offset = *(word_t*)(&ins[2]);
+    _word_t offset = *(_word_t*)(&ins[2]);
 
     if (!addr_check(offset + RG[rb]))   return 0;
     
     RG[ra] = DMEM[offset + RG[rb]];
 
-    return 2 + sizeof(word_t);
+    return 2 + sizeof(_word_t);
 }
 
 int CPU::ins_op(Instruction ins)
 {
-    int ifunc = ins[0] & 0xF;
+    int ifun = ins[0] & 0xF;
     int ra = (ins[1]>>4) & 0xF;
     int rb = ins[1] & 0xF;
 
-    sword_t b = RG[rb];         // temp save for condition code setting
-    switch (ifunc) {
+    _sword_t a = RG[ra];
+    _sword_t b = RG[rb];
+    _sword_t result;
+    switch (ifun) {
         case 0x0:
-            RG[rb] += RG[ra];
+            result = b + a;
+            if (a > 0 && b > 0 && result < 0 ||
+                a < 0 && b < 0 && result > 0) {
+                CC.OF = 1;
+            } else {
+                CC.OF = 0;
+            }
+
+            // fprintf(stderr, "%d(%d): %lld + %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
             break;
         case 0x1:
-            RG[rb] -= RG[ra];
+            result = b - a;
+            if (a < 0 && b > 0 && result < 0 ||
+                a > 0 && b < 0 && result > 0) {
+                CC.OF = 1;
+            } else {
+                CC.OF = 0;
+            }
+            // fprintf(stderr, "%d(%d): %lld - %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
             break;
         case 0x2:
-            RG[rb] &= RG[ra];
+            result = a & b;
+            CC.OF = 0;
+            // fprintf(stderr, "%d(%d): %lld & %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
             break;
         case 0x3:
-            RG[rb] ^= RG[ra];
+            result = a ^ b;
+            CC.OF = 0;
+            // fprintf(stderr, "%d(%d): %lld ^ %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
             break;
 
         default:
             assert(0);
     }
+    RG[rb] = result;
 
     // set CC
-    sword_t a = RG[ra];
-    sword_t result = RG[rb];
-    if (a >= 0 && b >= 0 && result < a ||
-        a <= 0 && b <= 0 && result > a) {
-        CC.OF = 1;
-    } else {
-        CC.OF = 0;
-    }
     CC.SF = result < 0;
     CC.ZF = result == 0;
 
@@ -279,21 +301,21 @@ int CPU::ins_op(Instruction ins)
 
 int CPU::ins_jmp(Instruction ins)
 {
-    int ifunc = ins[0] & 0xF;
+    int ifun = ins[0] & 0xF;
 
-    if (calc_cnd(ifunc)) {
-        PC = *(word_t*)(&ins[1]);
+    if (calc_cnd(ifun)) {
+        PC = *(_word_t*)(&ins[1]);
         return 0;
     } else {
-        return 1 + sizeof(word_t);
+        return 1 + sizeof(_word_t);
     }
 }
 
 int CPU::ins_call(Instruction ins)
 {
-    RG[rsp] -= sizeof(word_t);                // update & push rip
-    DMEM[RG[rsp]] = PC + 1 + sizeof(word_t);
-    PC = *(word_t*)(&ins[1]);               // jmp addr
+    RG[rsp] -= sizeof(_word_t);                // update & push rip
+    DMEM[RG[rsp]] = PC + 1 + sizeof(_word_t);
+    PC = *(_word_t*)(&ins[1]);               // jmp addr
 
     return 0;
 }
@@ -303,19 +325,19 @@ int CPU::ins_ret(Instruction ins)
     if (!addr_check(RG[rsp]))   return 0;
 
     PC = DMEM[RG[rsp]];                       // pop rip
-    RG[rsp] += sizeof(word_t);
+    RG[rsp] += sizeof(_word_t);
 
     return 0;
 }
 
 int CPU::ins_push(Instruction ins)
 {
-    if (!addr_check(RG[rsp] - sizeof(word_t)))  return 0;
+    if (!addr_check(RG[rsp] - sizeof(_word_t)))  return 0;
 
     int ra = (ins[1]>>4) & 0xF;
 
-    DMEM[RG[rsp] - sizeof(word_t)] = RG[ra];
-    RG[rsp] -= sizeof(word_t);
+    DMEM[RG[rsp] - sizeof(_word_t)] = RG[ra];
+    RG[rsp] -= sizeof(_word_t);
 
     return 2;
 }
@@ -327,7 +349,7 @@ int CPU::ins_pop(Instruction ins)
     int ra = (ins[1]>>4) & 0xF;
 
     RG[ra] = DMEM[RG[rsp]];
-    RG[rsp] += sizeof(word_t);
+    RG[rsp] += sizeof(_word_t);
 
     return 2;
 }
@@ -338,18 +360,22 @@ int CPU::ins_null_handler(Instruction ins)
     return 0;
 }
 
-bool CPU::calc_cnd(int ifunc)
+bool CPU::calc_cnd(int ifun)
 {
-    return !ifunc ||                                    // no condition
-        ifunc == 0x1 && ((CC.SF ^ CC.OF) | (CC.ZF)) ||  // le
-        ifunc == 0x2 && (CC.SF ^ CC.OF) ||              // l
-        ifunc == 0x3 && CC.ZF ||                        // e
-        ifunc == 0x4 && !CC.ZF ||                       // ne
-        ifunc == 0x5 && ~((CC.SF ^ CC.OF) | (CC.ZF)) || // ge
-        ifunc == 0x6 && ~(CC.SF ^ CC.OF);               // g
+    bool ret_val = (ifun == 0) ||                                    // no condition
+        (ifun == 0x1 && ((CC.SF ^ CC.OF) | (CC.ZF))) ||  // le
+        (ifun == 0x2 && (CC.SF ^ CC.OF)) ||              // l
+        (ifun == 0x3 && CC.ZF) ||                        // e
+        (ifun == 0x4 && !CC.ZF) ||                       // ne
+        (ifun == 0x5 && !(CC.SF ^ CC.OF)) ||             // ge
+        (ifun == 0x6 && (!(CC.SF ^ CC.OF) & !(CC.ZF)));   // g
+        
+    // fprintf(stderr, "%d(%d): ifun(%d), OF(%d), SF(%d), ZF(%d), RET(%d)\n", PC, history.size(), ifun, CC.OF, CC.SF, CC.ZF, ret_val);
+
+    return ret_val;
 }
 
-bool CPU::addr_check(word_t vaddr)
+bool CPU::addr_check(_word_t vaddr)
 {
     if (vaddr > MSIZE) {
         Stat = ADR;

@@ -1,6 +1,6 @@
 #include "Register.h"
 
-word_t& Register::operator[](int id)
+_word_t& Register::operator[](int id)
 {
     assert(0x0 <= id && id <= 0xF);
     return regs[id];

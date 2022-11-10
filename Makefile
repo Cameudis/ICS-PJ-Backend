@@ -32,6 +32,7 @@ OBJ := $(addprefix $(OBJ_PATH)/, $(addsuffix .o, $(notdir $(basename $(SRC)))))
 OBJ_DLL := $(filter-out obj/main.o,$(OBJ))
 OBJ := $(filter-out obj/api.o,$(OBJ))
 OBJ_DEBUG := $(addprefix $(DBG_PATH)/, $(addsuffix .o, $(notdir $(basename $(SRC)))))
+OBJ_DEBUG := $(filter-out debug/api.o,$(OBJ_DEBUG))
 
 # clean files list
 CLEAN_LIST := $(TARGET) $(TARGET_DBG) $(TARGET_DLL) $(OBJ) $(OBJ_DEBUG)

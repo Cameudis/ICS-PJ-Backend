@@ -3,19 +3,19 @@ using namespace std;
 
 #include "CPU.h"
 
+static CPU cpu;
+
 #ifndef NDEBUG
-#include "api.h"
 int debug()
 {
-    api_load_prog("test/prog1.yo");
-    api_step_exec(3);
-    api_revoke(2);
+    ifstream infile("test/abs-asum-cmov.yo");
+    cpu.load_prog(infile);
+    cpu.exec(114514);
+    cout << setw(4) << cpu.history << endl;
 
     exit(0);
 }
 #endif
-
-static CPU cpu;
 
 int main()
 {
@@ -23,7 +23,7 @@ int main()
 
     cpu.load_prog(cin);
     cpu.exec(114514);
-    cout << setw(4) << cpu.history[cpu.history.size()-1] << endl;
+    cout << setw(4) << cpu.history << endl;
 
     return 0;
 }

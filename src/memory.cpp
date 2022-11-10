@@ -1,23 +1,23 @@
 #include "memory.h"
 
-uint8_t* Memory::v2raddr(word_t vaddr)
+uint8_t* Memory::v2raddr(_word_t vaddr)
 {
     assert(vaddr <= MSIZE);
     return &mem[vaddr];
 }
 
-word_t Memory::r2vaddr(uint8_t* raddr) const
+_word_t Memory::r2vaddr(uint8_t* raddr) const
 {
-    return (word_t)raddr - (word_t)mem;
+    return (_word_t)raddr - (_word_t)mem;
 }
 
-Instruction Memory::get_ins(word_t vaddr)
+Instruction Memory::get_ins(_word_t vaddr)
 {
     assert(vaddr <= MSIZE);
     return &mem[vaddr];
 }
 
-word_t& Memory::operator[](word_t vaddr)
+_word_t& Memory::operator[](_word_t vaddr)
 {
-    return (word_t&)(mem[vaddr]);
+    return (_word_t&)(mem[vaddr]);
 }
