@@ -165,7 +165,36 @@ int CPU::exec_once(Instruction ins)
 {
     int icode = (ins[0]>>4) & 0xF;
 
-    return (this->*(instab[icode]))(ins);
+    switch (icode)
+    {
+    case 0x0:
+        return ins_halt(ins);
+    case 0x1:
+        return ins_nop(ins);
+    case 0x2:
+        return ins_rrmov(ins);
+    case 0x3:
+        return ins_irmov(ins);
+    case 0x4:
+        return ins_rmmov(ins);
+    case 0x5:
+        return ins_mrmov(ins);
+    case 0x6:
+        return ins_op(ins);
+    case 0x7:
+        return ins_jmp(ins);
+    case 0x8:
+        return ins_call(ins);
+    case 0x9:
+        return ins_ret(ins);
+    case 0xa:
+        return ins_push(ins);
+    case 0xb:
+        return ins_pop(ins);
+    
+    default:
+        return ins_null_handler(ins);
+    }
 }
 
 int CPU::ins_halt(Instruction ins)

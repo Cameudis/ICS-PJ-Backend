@@ -59,9 +59,6 @@ private:
     
     // maybe a part of CPU...? Whatever
     bool addr_check(_word_t vaddr);
-    
-    // --- instruction ---
-    typedef int (CPU::*InsPtr)(Instruction);
 
     // --- instruction handler ---
 
@@ -83,27 +80,6 @@ private:
     int ins_push(Instruction ins);
     int ins_pop(Instruction ins);
     int ins_null_handler(Instruction ins);
-
-    // --- instruction encode (icode) ---
-
-    InsPtr instab[0x10] = {
-        ins_halt,           // 0x0
-        ins_nop,            // 0x1
-        ins_rrmov,          // 0x2
-        ins_irmov,          // 0x3
-        ins_rmmov,          // 0x4
-        ins_mrmov,          // 0x5
-        ins_op,             // 0x6
-        ins_jmp,            // 0x7
-        ins_call,           // 0x8
-        ins_ret,            // 0x9
-        ins_push,           // 0xa
-        ins_pop,            // 0xb
-        ins_null_handler,
-        ins_null_handler,
-        ins_null_handler,
-        ins_null_handler,
-    };
 
 };
 
