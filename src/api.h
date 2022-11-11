@@ -12,16 +12,16 @@
 #define STAT_FILE_NAME "crt_state.json"
 
 // give a <*.yo> file
-extern "C" bool api_load_prog(char* filename);
+extern "C" bool __cdecl api_load_prog(char* filename);
 
 // exec <step> steps
-extern "C" bool api_step_exec(unsigned int step);
+extern "C" bool __cdecl api_step_exec(unsigned int step);
 
 // exec instruction without update PC
-extern "C" bool api_imm_exec(int64_t part1, int64_t part2);
+extern "C" bool __cdecl api_imm_exec(int64_t part1, int64_t part2);
 
 // time machine
-extern "C" bool api_revoke(int step);
+extern "C" bool __cdecl api_revoke(int step);
 
 
 // ---------- private ----------

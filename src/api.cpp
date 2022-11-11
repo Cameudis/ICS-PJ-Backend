@@ -5,7 +5,7 @@ using std::ofstream;
 
 static CPU cpu;
 
-extern "C" bool api_load_prog(char* filename)
+extern "C" bool __cdecl api_load_prog(char* filename)
 {
     ifstream ifd(filename);
     cpu.load_prog(ifd);
@@ -13,14 +13,14 @@ extern "C" bool api_load_prog(char* filename)
     return true;
 }
 
-extern "C" bool api_step_exec(unsigned int step)
+extern "C" bool __cdecl api_step_exec(unsigned int step)
 {
     cpu.exec(step);
     output_crt_state();
     return true;
 }
 
-extern "C" bool api_imm_exec(int64_t part1, int64_t part2)
+extern "C" bool __cdecl api_imm_exec(int64_t part1, int64_t part2)
 {
     uint8_t ins[10] = {};
     uint8_t *p1 = (uint8_t *)&part1;
@@ -38,7 +38,7 @@ extern "C" bool api_imm_exec(int64_t part1, int64_t part2)
     return true;
 }
 
-extern "C" bool api_revoke(int step)
+extern "C" bool __cdecl api_revoke(int step)
 {
     cpu.back(step);
     output_crt_state();
@@ -49,4 +49,5 @@ static void output_crt_state()
 {
     ofstream ofd(STAT_FILE_NAME);
     ofd << cpu.history[cpu.history.size()-1];
+    ofd.close();
 }
