@@ -2,6 +2,7 @@
 #define __REGISTER_H
 
 #include "common.h"
+#include <cstring>
 
 enum {
     rax,    rcx,    rdx,    rbx,
@@ -16,6 +17,9 @@ public:
     _word_t& operator[](int id);
 
     const char* get_reg_name(int id) const;
+
+    // clear
+    void clear() { memset(regs, 0, sizeof(regs)); }
 
 private:
     _word_t regs[16];

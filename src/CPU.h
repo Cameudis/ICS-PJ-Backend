@@ -26,6 +26,7 @@ class CPU {
 public:
     // --- init ---
     CPU();
+    void reset();
     void load_prog(std::istream& infile);
 
     // --- exec ---
@@ -34,7 +35,7 @@ public:
     void exec(unsigned int n);
 
     // back n steps, recover (json)history and all states
-    void back(unsigned int n);
+    bool back(unsigned int n);
 
     // SP: exec an immediate instruction, keep PC, update (json)history
     void im_exec(Instruction ins);
@@ -61,6 +62,9 @@ private:
     bool addr_check(_word_t vaddr);
 
     // --- instruction handler ---
+     
+    // --- instruction ---
+    typedef int (CPU::* InsPtr)(Instruction);
 
     // exec without update PC, return length of ins
     int exec_once(Instruction ins);
@@ -80,6 +84,27 @@ private:
     int ins_push(Instruction ins);
     int ins_pop(Instruction ins);
     int ins_null_handler(Instruction ins);
+
+    // --- instruction encode (icode) ---
+
+    InsPtr instab[0x10] = {
+        &CPU::ins_halt,           // 0x0
+        &CPU::ins_nop,            // 0x1
+        &CPU::ins_rrmov,          // 0x2
+        &CPU::ins_irmov,          // 0x3
+        &CPU::ins_rmmov,          // 0x4
+        &CPU::ins_mrmov,          // 0x5
+        &CPU::ins_op,             // 0x6
+        &CPU::ins_jmp,            // 0x7
+        &CPU::ins_call,           // 0x8
+        &CPU::ins_ret,            // 0x9
+        &CPU::ins_push,           // 0xa
+        &CPU::ins_pop,            // 0xb
+        &CPU::ins_null_handler,
+        &CPU::ins_null_handler,
+        &CPU::ins_null_handler,
+        &CPU::ins_null_handler,
+    };
 
 };
 

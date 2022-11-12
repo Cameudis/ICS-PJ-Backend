@@ -2,6 +2,7 @@
 #define __MEMORY_H
 
 #include "common.h"
+#include <cstring>
 
 class Memory {
 public:
@@ -14,6 +15,9 @@ public:
 
     // get instruction
     Instruction get_ins(_word_t vaddr);
+
+    // clear
+    void clear() { memset(mem, 0, MSIZE); }
 
 private:
     // memory

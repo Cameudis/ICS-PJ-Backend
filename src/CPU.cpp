@@ -16,9 +16,18 @@ static const char* State_name[] = {
 
 CPU::CPU()
 {
+    reset();
+}
+
+void CPU::reset()
+{
+    PC = 0;
     Stat = AOK;
     CC.ZF = 1;
-    PC = 0;
+    CC.OF = 0;
+    CC.SF = 0;
+    DMEM.clear();
+    RG.clear();
 }
 
 void CPU::load_prog(std::istream& infile)
@@ -27,6 +36,8 @@ void CPU::load_prog(std::istream& infile)
 
     char byte_s[3] = "00";
     uint8_t byte;
+
+    reset();
 
     while (!infile.eof()) {
         // read instruction
@@ -37,7 +48,7 @@ void CPU::load_prog(std::istream& infile)
         char* ins_str = strchr(str, ':');
         if (ins_str) {
             _word_t vaddr = 0;
-            sscanf(str, "%x", &vaddr);
+            sscanf(str, "%llx", &vaddr);
 
             // fprintf(stderr, "0x%03llx: ", vaddr);
 
@@ -48,7 +59,7 @@ void CPU::load_prog(std::istream& infile)
                 byte_s[1] = ins_str[1];
                 byte_s[2] = '\0';
                 // fputs(byte_s, stderr);
-                sscanf(byte_s, "%x", &byte);
+                sscanf(byte_s, "%hhx", &byte);
                 *DMEM.v2raddr(vaddr++) = byte;
 
                 ins_str += 2;
@@ -87,7 +98,7 @@ void CPU::update_history()
     for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
         if (DMEM[vaddr]) {
             char vaddr_str[10];
-            sprintf(vaddr_str, "%d", vaddr);
+            sprintf(vaddr_str, "%lld", vaddr);
 
             crt["MEM"][vaddr_str] = (int64_t)DMEM[vaddr];
         }
@@ -105,7 +116,7 @@ void CPU::exec(unsigned int n)
         // fprintf(stderr, "EXEC FAIL (Stat: %s)\n", State_name[Stat]);
         return;
     }
-    for (int i = 0; i < n; i++) {
+    for (unsigned int i = 0; i < n; i++) {
         if (!addr_check(PC)) {
             break;
         }
@@ -123,11 +134,12 @@ void CPU::exec(unsigned int n)
     }
 }
 
-void CPU::back(unsigned int n)
+bool CPU::back(unsigned int n)
 {
     unsigned int des_id = history.size() - 1 - n;
     if ((int)des_id < 0) {
         fprintf(stderr, "ERROR: back too much");
+        return false;
     }
 
     // recover state
@@ -148,12 +160,13 @@ void CPU::back(unsigned int n)
     map<string, _word_t> mem2val = history[des_id]["MEM"].get<map<string, _word_t>>();
     for (auto& x: mem2val) {
         _word_t addr;
-        sscanf(x.first.c_str(), "%ld", &addr);
+        sscanf(x.first.c_str(), "%lld", &addr);
         DMEM[addr] = x.second;
     }
 
     // 上白沢慧音 転世「一条戻り橋」
     history.erase(history.begin()+ des_id + 1, history.end());
+    return true;
 }
 
 void CPU::im_exec(Instruction ins)
@@ -165,36 +178,7 @@ int CPU::exec_once(Instruction ins)
 {
     int icode = (ins[0]>>4) & 0xF;
 
-    switch (icode)
-    {
-    case 0x0:
-        return ins_halt(ins);
-    case 0x1:
-        return ins_nop(ins);
-    case 0x2:
-        return ins_rrmov(ins);
-    case 0x3:
-        return ins_irmov(ins);
-    case 0x4:
-        return ins_rmmov(ins);
-    case 0x5:
-        return ins_mrmov(ins);
-    case 0x6:
-        return ins_op(ins);
-    case 0x7:
-        return ins_jmp(ins);
-    case 0x8:
-        return ins_call(ins);
-    case 0x9:
-        return ins_ret(ins);
-    case 0xa:
-        return ins_push(ins);
-    case 0xb:
-        return ins_pop(ins);
-    
-    default:
-        return ins_null_handler(ins);
-    }
+    return (this->*(instab[icode]))(ins);
 }
 
 int CPU::ins_halt(Instruction ins)
