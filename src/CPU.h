@@ -83,24 +83,25 @@ private:
     int ins_ret(Instruction ins);
     int ins_push(Instruction ins);
     int ins_pop(Instruction ins);
+    int ins_iadd(Instruction ins);
     int ins_null_handler(Instruction ins);
 
     // --- instruction encode (icode) ---
 
     InsPtr instab[0x10] = {
-        &CPU::ins_halt,           // 0x0
-        &CPU::ins_nop,            // 0x1
-        &CPU::ins_rrmov,          // 0x2
-        &CPU::ins_irmov,          // 0x3
-        &CPU::ins_rmmov,          // 0x4
-        &CPU::ins_mrmov,          // 0x5
-        &CPU::ins_op,             // 0x6
-        &CPU::ins_jmp,            // 0x7
-        &CPU::ins_call,           // 0x8
-        &CPU::ins_ret,            // 0x9
-        &CPU::ins_push,           // 0xa
-        &CPU::ins_pop,            // 0xb
-        &CPU::ins_null_handler,
+        &CPU::ins_halt,         // 0x0
+        &CPU::ins_nop,          // 0x1
+        &CPU::ins_rrmov,        // 0x2
+        &CPU::ins_irmov,        // 0x3
+        &CPU::ins_rmmov,        // 0x4
+        &CPU::ins_mrmov,        // 0x5
+        &CPU::ins_op,           // 0x6
+        &CPU::ins_jmp,          // 0x7
+        &CPU::ins_call,         // 0x8
+        &CPU::ins_ret,          // 0x9
+        &CPU::ins_push,         // 0xa
+        &CPU::ins_pop,          // 0xb
+        &CPU::ins_iadd,         // 0xc
         &CPU::ins_null_handler,
         &CPU::ins_null_handler,
         &CPU::ins_null_handler,

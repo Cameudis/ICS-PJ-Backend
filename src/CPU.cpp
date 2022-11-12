@@ -69,6 +69,7 @@ void CPU::load_prog(std::istream& infile)
     }
 
     // update_history();
+    fprintf(stderr, "Done!\n");
 }
 
 // ---------- output ----------
@@ -345,14 +346,16 @@ int CPU::ins_ret(Instruction ins)
 
 int CPU::ins_push(Instruction ins)
 {
-    if (!addr_check(RG[rsp] - sizeof(_word_t)))  return 0;
-
     int ra = (ins[1]>>4) & 0xF;
 
-    DMEM[RG[rsp] - sizeof(_word_t)] = RG[ra];
-    RG[rsp] -= sizeof(_word_t);
-
-    return 2;
+    if (!addr_check(RG[rsp] - sizeof(_word_t))) {
+        RG[rsp] -= sizeof(_word_t);
+        return 0;
+    } else {
+        DMEM[RG[rsp] - sizeof(_word_t)] = RG[ra];
+        RG[rsp] -= sizeof(_word_t);
+        return 2;
+    }
 }
 
 int CPU::ins_pop(Instruction ins)
@@ -361,10 +364,32 @@ int CPU::ins_pop(Instruction ins)
 
     int ra = (ins[1]>>4) & 0xF;
 
-    RG[ra] = DMEM[RG[rsp]];
     RG[rsp] += sizeof(_word_t);
+    RG[ra] = DMEM[RG[rsp] - sizeof(_word_t)];
 
     return 2;
+}
+
+int CPU::ins_iadd(Instruction ins)
+{
+    int rb = ins[1] & 0xF;
+    _sword_t a = RG[rb];
+    _sword_t b = *(_word_t*)(&ins[2]);
+    _sword_t result = a + b;
+
+    // set CC
+    if (a > 0 && b > 0 && result < 0 ||
+        a < 0 && b < 0 && result > 0) {
+        CC.OF = 1;
+    } else {
+        CC.OF = 0;
+    }
+    CC.SF = result < 0;
+    CC.ZF = result == 0;
+
+    RG[rb] = result;
+
+    return 2 + sizeof(_word_t);
 }
 
 int CPU::ins_null_handler(Instruction ins)
