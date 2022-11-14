@@ -17,7 +17,7 @@ public:
     Instruction get_ins(_word_t vaddr);
 
     // clear
-    void clear() { memset(mem, 0, MSIZE); }
+    void clear() { memset(mem, 0, sizeof(mem)); }
 
 private:
     // memory

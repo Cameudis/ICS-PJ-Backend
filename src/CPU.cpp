@@ -69,7 +69,7 @@ void CPU::load_prog(std::istream& infile)
     }
 
     // update_history();
-    fprintf(stderr, "Done!\n");
+    // fprintf(stderr, "Done!\n");
 }
 
 // ---------- output ----------
@@ -152,9 +152,9 @@ bool CPU::back(unsigned int n)
         RG[i] = history[des_id]["REG"][RG.get_reg_name(i)];
     }
 
-    CC.ZF = history[des_id]["CC"]["ZF"];
-    CC.SF = history[des_id]["CC"]["SF"];
-    CC.OF = history[des_id]["CC"]["OF"];
+    CC.ZF = (bool)(int)history[des_id]["CC"]["ZF"];
+    CC.SF = (bool)(int)history[des_id]["CC"]["SF"];
+    CC.OF = (bool)(int)history[des_id]["CC"]["OF"];
 
     Stat = history[des_id]["STAT"];
 
@@ -401,12 +401,12 @@ int CPU::ins_null_handler(Instruction ins)
 bool CPU::calc_cnd(int ifun)
 {
     bool ret_val = (ifun == 0) ||                                    // no condition
-        (ifun == 0x1 && ((CC.SF ^ CC.OF) | (CC.ZF))) ||  // le
+        (ifun == 0x1 && ((CC.SF ^ CC.OF) || (CC.ZF))) ||  // le
         (ifun == 0x2 && (CC.SF ^ CC.OF)) ||              // l
         (ifun == 0x3 && CC.ZF) ||                        // e
         (ifun == 0x4 && !CC.ZF) ||                       // ne
         (ifun == 0x5 && !(CC.SF ^ CC.OF)) ||             // ge
-        (ifun == 0x6 && (!(CC.SF ^ CC.OF) & !(CC.ZF)));   // g
+        (ifun == 0x6 && (!(CC.SF ^ CC.OF) && !(CC.ZF)));   // g
         
     // fprintf(stderr, "%d(%d): ifun(%d), OF(%d), SF(%d), ZF(%d), RET(%d)\n", PC, history.size(), ifun, CC.OF, CC.SF, CC.ZF, ret_val);
 

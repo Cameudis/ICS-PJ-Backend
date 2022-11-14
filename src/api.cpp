@@ -18,7 +18,7 @@ extern "C" bool _DLLExport api_step_exec(unsigned int step)
     cpu.exec(step);
     output_crt_state();
 
-    return (cpu.history[cpu.history.size()-1]["Stat"]);
+    return (cpu.history[cpu.history.size()-1]["STAT"]) == AOK;
 }
 
 extern "C" bool _DLLExport api_imm_exec(int64_t part1, int64_t part2)
