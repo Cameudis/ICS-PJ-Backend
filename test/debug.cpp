@@ -6,7 +6,7 @@ using namespace std;
 
 int main()
 {
-    ifstream ansin("test/asumi.json");
+    ifstream ansin("test/poptest.json");
     json ans;
     ansin >> ans;
     ansin.close();
