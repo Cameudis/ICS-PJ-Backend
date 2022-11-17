@@ -5,7 +5,7 @@
 #ifndef __API_H
 #define __API_H
 
-#include "CPU.h"
+#include "CPU_SEQ.h"
 #define _DLLExport __declspec (dllexport)
 
 // ---------- api ----------

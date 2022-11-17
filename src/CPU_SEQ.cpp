@@ -1,4 +1,4 @@
-#include "CPU.h"
+#include "CPU_SEQ.h"
 #include <cstring>
 #include <map>
 #include <string>
