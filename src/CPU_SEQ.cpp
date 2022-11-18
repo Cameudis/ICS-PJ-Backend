@@ -22,7 +22,7 @@ CPU::CPU()
 void CPU::reset()
 {
     PC = 0;
-    Stat = AOK;
+    Stat = SAOK;
     CC.ZF = 1;
     CC.OF = 0;
     CC.SF = 0;
@@ -113,7 +113,7 @@ void CPU::update_history()
 
 void CPU::exec(unsigned int n)
 {
-    if (Stat != AOK) {
+    if (Stat != SAOK) {
         // fprintf(stderr, "EXEC FAIL (Stat: %s)\n", State_name[Stat]);
         return;
     }
@@ -125,11 +125,11 @@ void CPU::exec(unsigned int n)
         PC += exec_once(DMEM.get_ins(PC));
         update_history();
 
-        if (Stat != AOK) {
+        if (Stat != SAOK) {
             break;
         }
     }
-    if (Stat != AOK) {
+    if (Stat != SAOK) {
         // fprintf(stderr, "EXEC HALT (Stat: %s)\n", State_name[Stat]);
         return;
     }
@@ -184,7 +184,7 @@ int CPU::exec_once(Instruction ins)
 
 int CPU::ins_halt(Instruction ins)
 {
-    Stat = HLT;
+    Stat = SHLT;
     return 0;
 }
 
@@ -394,7 +394,7 @@ int CPU::ins_iadd(Instruction ins)
 
 int CPU::ins_null_handler(Instruction ins)
 {
-    Stat = INS;
+    Stat = SINS;
     return 0;
 }
 
@@ -416,7 +416,7 @@ bool CPU::calc_cnd(int ifun)
 bool CPU::addr_check(_word_t vaddr)
 {
     if (vaddr > MSIZE) {
-        Stat = ADR;
+        Stat = SADR;
         return false;
     } else {
         return true;

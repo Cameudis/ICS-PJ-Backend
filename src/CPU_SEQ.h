@@ -10,10 +10,10 @@
 using json = nlohmann::json;
 
 enum State {
-    AOK = 1,    // Normal operation
-    HLT = 2,    // Halt instruction encountered
-    ADR = 3,    // Invalid address encountered
-    INS = 4,    // Invalid instruction encountered
+    SAOK = 1,    // Normal operation
+    SHLT = 2,    // Halt instruction encountered
+    SADR = 3,    // Invalid address encountered
+    SINS = 4,    // Invalid instruction encountered
 };
 
 struct Condition_code {
