@@ -1,5 +1,7 @@
 #include "CPU_PIPE.h"
 #include <cstring>
+#include <cstdio>
+#include <iostream>
 #include <map>
 #include <string>
 using std::map; using std::string;
@@ -21,13 +23,33 @@ CPU::CPU()
 
 void CPU::reset()
 {
-    PC = 0;
-    Stat = SAOK;
-    CC.ZF = 1;
-    CC.OF = 0;
-    CC.SF = 0;
+    CCnext.ZF = CC.ZF = 1;
+    CCnext.OF = CC.OF = 0;
+    CCnext.SF = CC.SF = 0;
     DMEM.clear();
     RG.clear();
+
+    memset(&F, 0, sizeof(F));
+    memset(&Fnext, 0, sizeof(Fnext));
+    memset(&D, 0, sizeof(D));
+    memset(&Dnext, 0, sizeof(Dnext));
+    memset(&E, 0, sizeof(E));
+    memset(&Enext, 0, sizeof(Enext));
+    memset(&M, 0, sizeof(M));
+    memset(&Mnext, 0, sizeof(Mnext));
+    memset(&W, 0, sizeof(W));
+    memset(&Wnext, 0, sizeof(Wnext));
+    D.stat = SAOK;
+    Dnext.stat = SAOK;
+    E.stat = SAOK;
+    Enext.stat = SAOK;
+    M.stat = SAOK;
+    Mnext.stat = SAOK;
+    W.stat = SAOK;
+    Wnext.stat = SAOK;
+
+    history.clear();
+    history_valid.clear();
 }
 
 void CPU::load_prog(std::istream& infile)
@@ -67,71 +89,139 @@ void CPU::load_prog(std::istream& infile)
         }
         infile.getline(str, 100);
     }
-
-    // update_history();
-    // fprintf(stderr, "Done!\n");
 }
 
 // ---------- output ----------
 
 void CPU::update_history()
 {
-    json crt;
-
-    // PC dump
-    crt["PC"] = PC;
-
-    // REG dump
-    for (int i = 0; i < 15; i++) {
-        crt["REG"][RG.get_reg_name(i)] = (int64_t)RG[i];
+    int crt_done = W.history_ID;
+    if (crt_done >= 0) {
+        // REG dump
+        for (int i = 0; i < 15; i++) {
+            history[crt_done]["REG"][RG.get_reg_name(i)] = (int64_t)RG[i];
+        }
+        
+        // STAT dump
+        history[crt_done]["STAT"] = W.stat;
     }
 
     // CC dump
-    crt["CC"]["OF"] = (int)CC.OF;
-    crt["CC"]["SF"] = (int)CC.SF;
-    crt["CC"]["ZF"] = (int)CC.ZF;
-
-    // STAT dump
-    crt["STAT"] = Stat;
-
-    // MEM dump
-    // waiting for Optimization!!!
-    for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
-        if (DMEM[vaddr]) {
-            char vaddr_str[10];
-            sprintf(vaddr_str, "%lld", vaddr);
-
-            crt["MEM"][vaddr_str] = (int64_t)DMEM[vaddr];
-        }
+    if (E.history_ID >= 0) {
+        history[E.history_ID]["CC"]["OF"] = (int)CCnext.OF;
+        history[E.history_ID]["CC"]["SF"] = (int)CCnext.SF;
+        history[E.history_ID]["CC"]["ZF"] = (int)CCnext.ZF;
     }
 
-    // add to history
-    history.push_back(crt);
+
+    // MEM dump
+    if (M.history_ID >= 0) {
+        for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
+            if (DMEM[vaddr]) {
+                char vaddr_str[10];
+                sprintf(vaddr_str, "%lld", vaddr);
+
+                history[M.history_ID]["MEM"][vaddr_str] = (int64_t)DMEM[vaddr];
+            }
+        }
+    }
+}
+
+void CPU::print_history()
+{
+    json out_history;
+    for (auto i = 1; i <= W.history_ID; i++) {
+        if (history_valid[i])
+            out_history.push_back(history[i]);
+    }
+
+    std::cout << std::setw(4) << out_history << std::endl;
+}
+
+void CPU::debug()
+{
+    for (int i = 0; i < 15; i++) {
+        printf("%s: %lld\t", RG.get_reg_name(i), RG[i]);
+        if (i % 4 == 3) {
+            putchar('\n');
+        }
+    }
+    putchar('\n');
+    putchar('\n');
+
+    printf("HID:\t%d\n", Dnext.history_ID);
+    printf("F:\tpredPC = %lld\tstall = %d\n", F.predPC, F.stall);
+    printf("Fn:\tpredPC = %lld\tstall = %d\n", Fnext.predPC, Fnext.stall);
+    printf("Dn:\tstat = %s\ticode = 0x%x\tifun = 0x%x\n", State_name[Dnext.stat], Dnext.icode, Dnext.ifun);
+    printf("\trA = %s\trB = %s\tvalC = %lld\tvalP = %lld\n", RG.get_reg_name(Dnext.rA), RG.get_reg_name(Dnext.rB), Dnext.valC, Dnext.valP);
+    printf("\tstall = %d\tbubble = %d\n", Dnext.stall, Dnext.bubble);
+    putchar('\n');
+
+    printf("HID:\t%d\n", D.history_ID);
+    printf("D:\tstat = %s\ticode = 0x%x\tifun = 0x%x\n", State_name[D.stat], D.icode, D.ifun);
+    printf("\trA = %s\trB = %s\tvalC = %lld\tvalP = %lld\n", RG.get_reg_name(D.rA), RG.get_reg_name(D.rB), D.valC, D.valP);
+    printf("\tstall = %d\tbubble = %d\n", D.stall, D.bubble);
+    printf("En:\tstat = %s\ticode = 0x%x\tifun = 0x%x\n", State_name[Enext.stat], Enext.icode, Enext.ifun);
+    printf("\tvalA = %lld\tvalB = %lld\tvalC = %lld\n", Enext.valA, Enext.valB, Enext.valC);
+    printf("\tdstE = %s\tdstM = %s\tsrcA = %s\tsrcB = %s\n", RG.get_reg_name(Enext.dstE), RG.get_reg_name(Enext.dstM), RG.get_reg_name(Enext.srcA), RG.get_reg_name(Enext.srcB));
+    printf("\tbubble = %d\n", Enext.bubble);
+    putchar('\n');
+
+    printf("HID:\t%d\n", E.history_ID);
+    printf("E:\tstat = %s\ticode = 0x%x\tifun = 0x%x\n", State_name[E.stat], E.icode, E.ifun);
+    printf("\tvalA = %lld\tvalB = %lld\tvalC = %lld\n", E.valA, E.valB, E.valC);
+    printf("\tdstE = %s\tdstM = %s\tsrcA = %s\tsrcB = %s\n", RG.get_reg_name(E.dstE), RG.get_reg_name(E.dstM), RG.get_reg_name(E.srcA), RG.get_reg_name(E.srcB));
+    printf("\tbubble = %d\n", E.bubble);
+    printf("Mn:\tstat = %s\ticode = 0x%x\tCnd = 0x%x\n", State_name[Mnext.stat], Mnext.icode, Mnext.Cnd);
+    printf("\tvalA = %lld\tvalE = %lld\n", Mnext.valA, Mnext.valE);
+    printf("\tdstE = %s\tdstM = %s\n", RG.get_reg_name(Mnext.dstE), RG.get_reg_name(Mnext.dstM));
+    printf("\tbubble = %d\n", Mnext.bubble);
+    putchar('\n');
+
+    printf("HID:\t%d\n", M.history_ID);
+    printf("M:\tstat = %s\ticode = 0x%x\tCnd = 0x%x\n", State_name[M.stat], M.icode, M.Cnd);
+    printf("\tvalA = %lld\tvalE = %lld\n", M.valA, M.valE);
+    printf("\tdstE = %s\tdstM = %s\n", RG.get_reg_name(M.dstE), RG.get_reg_name(M.dstM));
+    printf("\tbubble = %d\n", M.bubble);
+    printf("Wn:\tstat = %s\ticode = 0x%x\n", State_name[Wnext.stat], Wnext.icode);
+    printf("\tvalE = %lld\tvalM = %lld\n", Wnext.valE, Wnext.valM);
+    printf("\tdstE = %s\tdstM = %s\n", RG.get_reg_name(Wnext.dstE), RG.get_reg_name(Wnext.dstM));
+    printf("\tbubble = %d\n", Wnext.bubble);
+    putchar('\n');
+
+    printf("HID:\t%d\n", W.history_ID);
+    printf("W:\tstat = %s\ticode = 0x%x\n", State_name[W.stat], W.icode);
+    printf("\tvalE = %lld\tvalM = %lld\n", W.valE, W.valM);
+    printf("\tdstE = %s\tdstM = %s\n", RG.get_reg_name(W.dstE), RG.get_reg_name(W.dstM));
+    printf("\tbubble = %d\n", W.bubble);
+    putchar('\n');
+    printf("---------- ---------- ----------\n\n");
 }
 
 // ---------- exec ----------
 
 void CPU::exec(unsigned int n)
 {
-    if (Stat != SAOK) {
-        // fprintf(stderr, "EXEC FAIL (Stat: %s)\n", State_name[Stat]);
-        return;
+    // init pipeline
+    if (history.size() == 0) {
+        // insert bubble
+        D.bubble = true;
+        D.history_ID = -1;
+        E.bubble = true;
+        E.history_ID = -1;
+        M.bubble = true;
+        M.history_ID = -1;
+        W.bubble = true;
+        W.history_ID = -1;
+
+        for (int i = 0; i < 4; i++)
+            exec_once();
     }
+
+    // execute
     for (unsigned int i = 0; i < n; i++) {
-        if (!addr_check(PC)) {
+        if (!exec_once())
             break;
-        }
-
-        PC += exec_once(DMEM.get_ins(PC));
-        update_history();
-
-        if (Stat != SAOK) {
-            break;
-        }
-    }
-    if (Stat != SAOK) {
-        // fprintf(stderr, "EXEC HALT (Stat: %s)\n", State_name[Stat]);
-        return;
     }
 }
 
@@ -145,16 +235,27 @@ void CPU::im_exec(Instruction ins)
     /* TODO */
 }
 
-int CPU::exec_once(Instruction ins)
+bool CPU::exec_once()
 {
+    // crt newest stat (true state) is HLT
+    if (W.stat != SAOK) {
+        // if HLT not recorded, than record it to history
+        if (history[history.size()-4]["STAT"] == SAOK) {
+            history.push_back(0);
+            update_history();
+        }
+        return false;
+    }
+
     fetch();
     decode();
     execute();
     memoryAccess();
     writeBack();
 
-    // special case
-    // these behavior require Wnext, so must be done after state:memoryAccess
+    // a part of Execute
+    // these behavior require Wnext.stat (actually m_stat)
+    // so must be done after state:memoryAccess
     if (Wnext.stat == SAOK) {
         CC = CCnext;
         Mnext.Cnd = calc_cnd(E.ifun);
@@ -162,10 +263,90 @@ int CPU::exec_once(Instruction ins)
     if (E.icode == IRRMOVQ && !Mnext.Cnd) {
         Mnext.dstE = rnull;
     }
-    if (Mnext.dstE == Enext.srcA) {     // forwarding
-        Enext.valA = Mnext.valE;
+
+    // Forwarding
+    if (D.icode != ICALL && D.icode != IJXX) {
+        if (Mnext.dstE == Enext.srcA) {
+            Enext.valA = Mnext.valE;    // valE from execute
+            // puts("Forwarding valA from e_valE");
+        }
+        else if (M.dstM == Enext.srcA) {
+            Enext.valA = Wnext.valM;    // valM from memory
+            // puts("Forwarding valA from m_valm");
+        }
+        else if (M.dstE == Enext.srcA) {
+            Enext.valA = M.valE;        // valE from memory
+            // puts("Forwarding valA from M_valE");
+        }
+        else if (W.dstM == Enext.srcA) {
+            Enext.valA = W.valM;        // valM from write back
+            // puts("Forwarding valA from W_valM");
+        }
+        else if (W.dstE == Enext.srcA) {
+            Enext.valA = W.valE;        // valE from write back
+            // puts("Forwarding valA from W.valE");
+        }
+    }
+    
+    if (Mnext.dstE == Enext.srcB)
+        Enext.valB = Mnext.valE;    // valE from execute
+    else if (M.dstM == Enext.srcB)
+        Enext.valB = Wnext.valM;    // valM from memory
+    else if (M.dstE == Enext.srcB)
+        Enext.valB = M.valE;        // valE from memory
+    else if (W.dstM == Enext.srcB)
+        Enext.valB = W.valM;        // valM from write back
+    else if (W.dstE == Enext.srcB)
+        Enext.valB = W.valE;        // valE from write back
+
+    // handling special cases
+    // 1. ret hazard
+    if (D.icode == IRET || E.icode == IRET || M.icode == IRET) {
+        // std::cout << "Ret Hazard!" << std::endl;
+        Fnext.stall = true;
+        Dnext.bubble = true;
+    }
+    // 2. load/use hazard
+    if ((E.icode == IMRMOVQ || E.icode == IPOPQ) &&
+        (E.dstM == Enext.srcA || E.dstM == Enext.srcB)) {
+        // std::cout << "Load/Use Hazard!" << std::endl;
+        Fnext.stall = true;
+        Dnext.stall = true;
+        Enext.bubble = true;
+    }
+    // 3. mispredicted branch
+    if (E.icode == IJXX && !Mnext.Cnd) {
+        // std::cout << "Mis-branch Hazard!" << std::endl;
+        Dnext.bubble = true;
+        Enext.bubble = true;
     }
 
+    // update history
+    update_history();
+
+    // debug
+    debug();
+
+    // enter new cycle
+    if (!Fnext.stall)   {
+        F = Fnext;
+    } else {
+        Fnext.stall = false;
+    }
+    if (!Dnext.stall) {
+        D = Dnext;
+        D.stalled = false;
+    } else {
+        D.history_ID = Dnext.history_ID;
+        D.stalled = true;
+        Dnext.stall = false;
+        Dnext.bubble = false;
+    }
+    E = Enext;
+    M = Mnext;
+    W = Wnext;
+
+    return true;
 }
 
 bool CPU::calc_cnd(int ifun)
@@ -183,14 +364,9 @@ bool CPU::calc_cnd(int ifun)
     return ret_val;
 }
 
-bool CPU::addr_check(_word_t vaddr)
+bool addr_valid(_word_t vaddr)
 {
-    if (vaddr > MSIZE) {
-        Stat = SADR;
-        return false;
-    } else {
-        return true;
-    }
+    return vaddr <= MSIZE;
 }
 
 bool instr_valid(int icode)
@@ -232,7 +408,7 @@ void CPU::fetch()
     _word_t f_pc;
 
     // select pc
-    if ((M.icode == IJXX) && M.Cnd) {   // conditional jmp
+    if (M.icode == IJXX && !M.Cnd) {   // mispredicted cjmp
         f_pc = M.valA;
     } else if (W.icode == IRET) {       // ret
         f_pc = W.valM;
@@ -240,8 +416,28 @@ void CPU::fetch()
         f_pc = F.predPC;
     }
 
+    // update history
+    // since PC stands for next instruction's position
+    // here I actually creates a record for last instruction
+    json last;
+    last["PC"] = f_pc;
+    for (int i = 0; i < 15; i++)
+        last["REG"][RG.get_reg_name(i)] = 0;
+    last["CC"]["OF"] = 0;
+    last["CC"]["SF"] = 0;
+    last["CC"]["ZF"] = 0;
+    last["STAT"] = SAOK;
+    last["MEM"]["0"] = 0;
+    history.push_back(last);
+    history_valid.push_back(true);
+
+    // crt_ins's record ID should be set on next round
+    Dnext.history_ID = history.size();
+
+    Dnext.stat = SAOK;
+
     // fetch instruction
-    if (!addr_check(f_pc)) {
+    if (!addr_valid(f_pc)) {
         Dnext.stat = SADR;
         return;
     }
@@ -253,6 +449,12 @@ void CPU::fetch()
 
     if (!instr_valid(Dnext.icode)) {
         Dnext.stat = SINS;
+        return;
+    }
+
+    if (Dnext.icode == IHALT) {
+        Dnext.stat = SHLT;
+        Fnext.predPC = f_pc;
         return;
     }
 
@@ -279,6 +481,17 @@ void CPU::fetch()
 
 void CPU::decode()
 {
+    Enext.history_ID = D.history_ID;
+    Enext.stalled = D.stalled;
+
+    if (D.bubble == true) {
+        Enext.icode = INOP;
+        Enext.stat = SAOK;
+        Enext.bubble = true;
+        Dnext.bubble = false;
+        return;
+    }
+
     Enext.stat = D.stat;
     Enext.icode = D.icode;
     Enext.ifun = D.ifun;
@@ -324,6 +537,8 @@ void CPU::decode()
     Enext.srcA = srcA;
     Enext.srcB = srcB;
 
+    // printf("valA = %lld(maybe RG[%s]=%lld)\n", Enext.valA, RG.get_reg_name(srcA), RG[srcA]);
+
     int dstE;
     if (D.icode == IRRMOVQ ||
         D.icode == IIRMOVQ ||
@@ -356,6 +571,18 @@ void CPU::decode()
 
 void CPU::execute()
 {
+    Mnext.history_ID = E.history_ID;
+    Mnext.stalled = E.stalled;
+    
+    if (E.bubble == true) {
+        Mnext.icode = INOP;
+        Mnext.stat = SAOK;
+        Mnext.bubble = true;
+        if (!D.bubble)
+            Enext.bubble = false;
+        return;
+    }
+
     Mnext.stat = E.stat;
     Mnext.icode = E.icode;
     Mnext.valA = E.valA;
@@ -398,14 +625,14 @@ void CPU::execute()
         aluA = -aluA;
         valE = aluA + aluB;
     } else if (alufun == ALUAND) {
-
+        valE = aluA & aluB;
     } else if (alufun == ALUXOR) {
-
+        valE = aluA ^ aluB;
     }
+    Mnext.valE = valE;
 
     // set CC & calc CND
-    // 111111111111
-    if (W.stat == SAOK) {
+    if (W.stat == SAOK && E.icode == IOPQ) {
         if (alufun == ALUADD || alufun == ALUSUB) {
             if (aluA > 0 && aluB > 0 && Mnext.valE < 0 ||
                 aluA < 0 && aluB < 0 && Mnext.valE > 0) {
@@ -422,32 +649,82 @@ void CPU::execute()
         CCnext = CC;
     }
 
+    Mnext.dstE = E.dstE;
+    Mnext.dstM = E.dstM;
+
     // these will be done in exec_once
     // Mnext.Cnd = calc_cnd(E.ifun);
     // if (E.icode == IRRMOVQ && !Mnext.Cnd)
     //     Mnext.dstE = rnull;
-
-    Mnext.dstM = E.dstM;
 }
 
 void CPU::memoryAccess()
 {
+    Wnext.history_ID = M.history_ID;
+    
+    if (M.bubble == true) {
+        Wnext.icode = INOP;
+        Wnext.stat = SAOK;
+        Wnext.bubble = true;
+        if (!E.bubble)
+            Mnext.bubble = false;
+        return;
+    }
+
     _word_t mem_addr;
-    if (M.icode == IRRMOVQ || M.icode == IPUSHQ || M.icode == ICALL || M.icode == IMRMOVQ) {
+    if (M.icode == IRMMOVQ || M.icode == IPUSHQ || M.icode == ICALL || M.icode == IMRMOVQ) {
         mem_addr = M.valE;
     } else if (M.icode == IPOPQ || M.icode == IRET) {
         mem_addr = M.valA;
+    } else {
+        mem_addr = 0;   // a random valid address
     }
 
-    if (!addr_check(mem_addr)) {
+    Wnext.stat = M.stat;
+    if (!addr_valid(mem_addr)) {
         Wnext.stat = SADR;
         return;
     }
 
-    
+    bool mem_read = false;
+    bool mem_write = false;
+    if (M.icode == IMRMOVQ || M.icode == IPOPQ || M.icode == IRET) {
+        mem_read = true;
+    } else if (M.icode == IRMMOVQ || M.icode == IPUSHQ || M.icode == ICALL) {
+        mem_write = true;
+    }
+
+    if (mem_write) {
+        DMEM[mem_addr] = M.valA;
+    }
+  
+    Wnext.icode = M.icode;
+    Wnext.valE = M.valE;
+    Wnext.valM = DMEM[mem_addr];
+    Wnext.dstE = M.dstE;
+    Wnext.dstM = M.dstM;
 }
 
 void CPU::writeBack()
 {
+    if (W.bubble) {
+        if (!M.bubble)
+            Wnext.bubble = false;
+        if (W.history_ID >= 0) {    // 非初始bubble
+            if (!M.stalled) {
+                // 将上一个非bubble（valid）指令的PC设置为本bubble对应记录的PC
+                auto last_valid = W.history_ID - 1;
+                for (last_valid; history_valid[last_valid] == false; last_valid--)
+                    ;
+                history[last_valid]["PC"] = history[W.history_ID]["PC"];
+            }
 
+            // 将本bubble对应的记录设置为非法
+            history_valid[W.history_ID] = false;
+        }
+        return;
+    }
+
+    RG[W.dstE] = W.valE;
+    RG[W.dstM] = W.valM;
 }
