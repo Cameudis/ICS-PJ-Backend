@@ -5,6 +5,7 @@
 #include "Register.h"
 #include "Memory.h"
 #include <fstream>
+#include <vector>
 
 #include "include/json.hpp"
 using json = nlohmann::json;
@@ -56,7 +57,11 @@ public:
 
     // --- output ---
     json history;
+    std::vector<bool> history_valid;
     void update_history();
+    void print_history();
+    void debug();
+    void print_register();
 
 private:
 
@@ -65,8 +70,8 @@ private:
     // Programmer-visible States
 
     Memory DMEM;
-    _word_t PC;
-    State Stat;
+    // _word_t PC;
+    // State Stat;
     Condition_code CCnext;  // for m_stat check
     Condition_code CC;
     Register RG;
@@ -92,13 +97,10 @@ private:
         // pipeline control
         bool stall;
         bool bubble;
-        // void bubble() {
-        //     stat = SAOK;
-        //     icode = INOP;
-        //     ifun = 0;
-        //     rA = rB = rnull;
-        //     valC = valP = 0;
-        // }
+
+        // record history
+        int history_ID;
+        bool stalled;
     } D, Dnext;
 
     struct Reg_Execute {
@@ -115,13 +117,10 @@ private:
 
         // pipeline control
         bool bubble;
-        // void bubble() {
-        //     stat = SAOK;
-        //     icode = INOP;
-        //     ifun = 0;
-        //     valA = valB = valC = 0;
-        //     dstE = dstM = srcA = srcB = rnull;
-        // }
+
+        // record history
+        int history_ID;
+        bool stalled;
     } E, Enext;
 
     struct Reg_Memory {
@@ -135,6 +134,10 @@ private:
 
         // pipeline control
         bool bubble;
+
+        // record history
+        int history_ID;
+        bool stalled;
     } M, Mnext;
 
     struct Reg_Writeback {
@@ -147,18 +150,18 @@ private:
 
         // pipeline control
         bool bubble;
+
+        // record history
+        int history_ID;
     } W, Wnext;
     
     // CND calculator (a part of ALU)
     bool calc_cnd(int icode);
-    
-    // maybe a part of CPU...? Whatever
-    bool addr_check(_word_t vaddr);
 
     // --- Execute ---
 
     // exec without update PC, return length of ins
-    int exec_once(Instruction ins);
+    bool exec_once();
 
     void fetch();
     void decode();
