@@ -49,19 +49,12 @@ public:
     // exec n steps, update (json)history and PC
     void exec(unsigned int n);
 
-    // back n steps, recover (json)history and all states
-    bool back(unsigned int n);
-
-    // SP: exec an immediate instruction, keep PC, update (json)history
-    void im_exec(Instruction ins);
-
     // --- output ---
     json history;
-    std::vector<bool> history_valid;
+    std::vector<bool> history_valid;    // for bubble
     void update_history();
     void print_history();
     void debug();
-    void print_register();
 
 private:
 
@@ -101,7 +94,6 @@ private:
         // record history
         int history_ID;
         _word_t ins_addr;
-        bool stalled;
     } D, Dnext;
 
     struct Reg_Execute {
@@ -122,7 +114,6 @@ private:
         // record history
         int history_ID;
         _word_t ins_addr;
-        bool stalled;
     } E, Enext;
 
     struct Reg_Memory {
@@ -140,7 +131,6 @@ private:
         // record history
         int history_ID;
         _word_t ins_addr;
-        bool stalled;
     } M, Mnext;
 
     struct Reg_Writeback {

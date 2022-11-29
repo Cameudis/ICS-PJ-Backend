@@ -131,7 +131,7 @@ void CPU::update_history()
 void CPU::print_history()
 {
     json out_history;
-    for (auto i = 1; i <= W.history_ID - 1; i++) {
+    for (auto i = 0; i <= W.history_ID - 1; i++) {
         if (history_valid[i])
             out_history.push_back(history[i]);
     }
@@ -150,7 +150,7 @@ void CPU::debug()
     putchar('\n');
     putchar('\n');
 
-    printf("HID:\t%d\n", Dnext.history_ID);
+    printf("HID:\t%2d  Addr: 0x%x (%d)\n", Dnext.history_ID, Dnext.ins_addr, Dnext.ins_addr);
     printf("F:\tpredPC = %lld\tstall = %d\n", F.predPC, F.stall);
     printf("Fn:\tpredPC = %lld\tstall = %d\n", Fnext.predPC, Fnext.stall);
     printf("Dn:\tstat = %s\ticode = 0x%x\tifun = 0x%x\n", State_name[Dnext.stat], Dnext.icode, Dnext.ifun);
@@ -158,7 +158,7 @@ void CPU::debug()
     printf("\tstall = %d\tbubble = %d\n", Dnext.stall, Dnext.bubble);
     putchar('\n');
 
-    printf("HID:\t%d\n", D.history_ID);
+    printf("HID:\t%2d  Addr: 0x%x (%d)\n", D.history_ID, D.ins_addr, D.ins_addr);
     printf("D:\tstat = %s\ticode = 0x%x\tifun = 0x%x\n", State_name[D.stat], D.icode, D.ifun);
     printf("\trA = %s\trB = %s\tvalC = %lld\tvalP = %lld\n", RG.get_reg_name(D.rA), RG.get_reg_name(D.rB), D.valC, D.valP);
     printf("\tstall = %d\tbubble = %d\n", D.stall, D.bubble);
@@ -168,7 +168,7 @@ void CPU::debug()
     printf("\tbubble = %d\n", Enext.bubble);
     putchar('\n');
 
-    printf("HID:\t%d\n", E.history_ID);
+    printf("HID:\t%2d  Addr: 0x%x (%d)\n", E.history_ID, E.ins_addr, E.ins_addr);
     printf("E:\tstat = %s\ticode = 0x%x\tifun = 0x%x\n", State_name[E.stat], E.icode, E.ifun);
     printf("\tvalA = %lld\tvalB = %lld\tvalC = %lld\n", E.valA, E.valB, E.valC);
     printf("\tdstE = %s\tdstM = %s\tsrcA = %s\tsrcB = %s\n", RG.get_reg_name(E.dstE), RG.get_reg_name(E.dstM), RG.get_reg_name(E.srcA), RG.get_reg_name(E.srcB));
@@ -179,7 +179,7 @@ void CPU::debug()
     printf("\tbubble = %d\n", Mnext.bubble);
     putchar('\n');
 
-    printf("HID:\t%d\n", M.history_ID);
+    printf("HID:\t%2d  Addr: 0x%x (%d)\n", M.history_ID, M.ins_addr, M.ins_addr);
     printf("M:\tstat = %s\ticode = 0x%x\tCnd = 0x%x\n", State_name[M.stat], M.icode, M.Cnd);
     printf("\tvalA = %lld\tvalE = %lld\n", M.valA, M.valE);
     printf("\tdstE = %s\tdstM = %s\n", RG.get_reg_name(M.dstE), RG.get_reg_name(M.dstM));
@@ -190,7 +190,7 @@ void CPU::debug()
     printf("\tbubble = %d\n", Wnext.bubble);
     putchar('\n');
 
-    printf("HID:\t%d\n", W.history_ID);
+    printf("HID:\t%2d  Addr: 0x%x (%d)\n", W.history_ID, W.ins_addr, W.ins_addr);
     printf("W:\tstat = %s\ticode = 0x%x\n", State_name[W.stat], W.icode);
     printf("\tvalE = %lld\tvalM = %lld\n", W.valE, W.valM);
     printf("\tdstE = %s\tdstM = %s\n", RG.get_reg_name(W.dstE), RG.get_reg_name(W.dstM));
@@ -226,30 +226,11 @@ void CPU::exec(unsigned int n)
     }
 }
 
-bool CPU::back(unsigned int n)
-{
-    /* TODO */
-}
-
-void CPU::im_exec(Instruction ins)
-{
-    /* TODO */
-}
-
 bool CPU::exec_once()
 {
     if (Stat != SAOK) {
         return false;
     }
-
-    // crt newest stat (true state) is HLT
-    // if (W.stat != SAOK) {
-    //     // if HLT not recorded, than record it to history
-    //     if (history[history.size()-4]["STAT"] == SAOK) {
-    //         history.push_back(0);
-    //         update_history();
-    //     }
-    // }
 
     fetch();
     decode();
@@ -336,14 +317,14 @@ bool CPU::exec_once()
     if (!Fnext.stall)   {
         F = Fnext;
     } else {
+        F.predPC = Dnext.ins_addr;
         Fnext.stall = false;
     }
     if (!Dnext.stall) {
         D = Dnext;
-        D.stalled = false;
     } else {
+        // handle stall
         D.history_ID = Dnext.history_ID;
-        D.stalled = true;
         Dnext.stall = false;
         Dnext.bubble = false;
     }
@@ -421,16 +402,13 @@ void CPU::fetch()
         f_pc = F.predPC;
     }
 
-    // update history
-    // since PC stands for next instruction's position
-    // here I actually creates a record for last instruction
-    json last;
-    last["PC"] = f_pc;
-    last["STAT"] = SAOK;
-    history.push_back(last);
+    // create history record
+    json record;
+    record["PC"] = f_pc;    // temp val, will be update by next AOK instruction(not bubble, not s)
+    history.push_back(record);
     history_valid.push_back(true);
 
-    Dnext.history_ID = history.size();    // crt_ins's record will be create on next round
+    Dnext.history_ID = history.size() - 1;
     Dnext.ins_addr = f_pc;
     Dnext.stat = SAOK;
 
@@ -480,7 +458,7 @@ void CPU::fetch()
 void CPU::decode()
 {
     Enext.history_ID = D.history_ID;
-    Enext.stalled = D.stalled;
+    Enext.ins_addr = D.ins_addr;
 
     if (D.bubble == true) {
         Enext.icode = INOP;
@@ -570,7 +548,7 @@ void CPU::decode()
 void CPU::execute()
 {
     Mnext.history_ID = E.history_ID;
-    Mnext.stalled = E.stalled;
+    Mnext.ins_addr = E.ins_addr;
     
     if (E.bubble == true) {
         Mnext.icode = INOP;
@@ -659,6 +637,7 @@ void CPU::execute()
 void CPU::memoryAccess()
 {
     Wnext.history_ID = M.history_ID;
+    Wnext.ins_addr = M.ins_addr;
     
     if (M.bubble == true) {
         Wnext.icode = INOP;
@@ -681,10 +660,6 @@ void CPU::memoryAccess()
     Wnext.stat = M.stat;
     if (!addr_valid(mem_addr)) {
         Wnext.stat = SADR;
-    }
-    if (Wnext.stat != SAOK) {
-        // modify history PC
-        history[Wnext.history_ID]["PC"] = history[W.history_ID]["PC"];
     }
 
     bool mem_read = false;
@@ -712,18 +687,18 @@ void CPU::writeBack()
         if (!M.bubble)
             Wnext.bubble = false;
         if (W.history_ID >= 0) {    // 非初始bubble
-            if (!M.stalled) {
-                // 将上一个非bubble（valid）指令的PC设置为本bubble对应记录的PC
-                auto last_valid = W.history_ID - 1;
-                for (last_valid; history_valid[last_valid] == false; last_valid--)
-                    ;
-                history[last_valid]["PC"] = history[W.history_ID]["PC"];
-            }
-
             // 将本bubble对应的记录设置为非法
             history_valid[W.history_ID] = false;
         }
         return;
+    } else  {
+        auto last_valid = W.history_ID - 1;
+        if (last_valid >= 0) {
+            for (last_valid; history_valid[last_valid] == false; last_valid--)
+                ;
+            if (last_valid >= 0)
+                history[last_valid]["PC"] = W.ins_addr;
+        }
     }
 
     RG[W.dstE] = W.valE;
