@@ -71,7 +71,7 @@ private:
 
     Memory DMEM;
     // _word_t PC;
-    // State Stat;
+    State Stat;
     Condition_code CCnext;  // for m_stat check
     Condition_code CC;
     Register RG;
@@ -100,6 +100,7 @@ private:
 
         // record history
         int history_ID;
+        _word_t ins_addr;
         bool stalled;
     } D, Dnext;
 
@@ -120,6 +121,7 @@ private:
 
         // record history
         int history_ID;
+        _word_t ins_addr;
         bool stalled;
     } E, Enext;
 
@@ -137,6 +139,7 @@ private:
 
         // record history
         int history_ID;
+        _word_t ins_addr;
         bool stalled;
     } M, Mnext;
 
@@ -153,6 +156,7 @@ private:
 
         // record history
         int history_ID;
+        _word_t ins_addr;
     } W, Wnext;
     
     // CND calculator (a part of ALU)

@@ -26,6 +26,7 @@ void CPU::reset()
     CCnext.ZF = CC.ZF = 1;
     CCnext.OF = CC.OF = 0;
     CCnext.SF = CC.SF = 0;
+    Stat = SAOK;
     DMEM.clear();
     RG.clear();
 
@@ -130,7 +131,7 @@ void CPU::update_history()
 void CPU::print_history()
 {
     json out_history;
-    for (auto i = 1; i <= W.history_ID; i++) {
+    for (auto i = 1; i <= W.history_ID - 1; i++) {
         if (history_valid[i])
             out_history.push_back(history[i]);
     }
@@ -237,15 +238,18 @@ void CPU::im_exec(Instruction ins)
 
 bool CPU::exec_once()
 {
-    // crt newest stat (true state) is HLT
-    if (W.stat != SAOK) {
-        // if HLT not recorded, than record it to history
-        if (history[history.size()-4]["STAT"] == SAOK) {
-            history.push_back(0);
-            update_history();
-        }
+    if (Stat != SAOK) {
         return false;
     }
+
+    // crt newest stat (true state) is HLT
+    // if (W.stat != SAOK) {
+    //     // if HLT not recorded, than record it to history
+    //     if (history[history.size()-4]["STAT"] == SAOK) {
+    //         history.push_back(0);
+    //         update_history();
+    //     }
+    // }
 
     fetch();
     decode();
@@ -325,9 +329,10 @@ bool CPU::exec_once()
     update_history();
 
     // debug
-    debug();
+    // debug();
 
     // enter new cycle
+    Stat = W.stat;
     if (!Fnext.stall)   {
         F = Fnext;
     } else {
@@ -421,19 +426,12 @@ void CPU::fetch()
     // here I actually creates a record for last instruction
     json last;
     last["PC"] = f_pc;
-    for (int i = 0; i < 15; i++)
-        last["REG"][RG.get_reg_name(i)] = 0;
-    last["CC"]["OF"] = 0;
-    last["CC"]["SF"] = 0;
-    last["CC"]["ZF"] = 0;
     last["STAT"] = SAOK;
-    last["MEM"]["0"] = 0;
     history.push_back(last);
     history_valid.push_back(true);
 
-    // crt_ins's record ID should be set on next round
-    Dnext.history_ID = history.size();
-
+    Dnext.history_ID = history.size();    // crt_ins's record will be create on next round
+    Dnext.ins_addr = f_pc;
     Dnext.stat = SAOK;
 
     // fetch instruction
@@ -596,7 +594,7 @@ void CPU::execute()
         aluA = E.valC;
     } else if (E.icode == ICALL || E.icode == IPUSHQ) {
         aluA = -8;
-    } else if (E.icode == IRET || E.icode == IOPQ) {
+    } else if (E.icode == IRET || E.icode == IPOPQ) {
         aluA = 8;
     }
 
@@ -683,7 +681,10 @@ void CPU::memoryAccess()
     Wnext.stat = M.stat;
     if (!addr_valid(mem_addr)) {
         Wnext.stat = SADR;
-        return;
+    }
+    if (Wnext.stat != SAOK) {
+        // modify history PC
+        history[Wnext.history_ID]["PC"] = history[W.history_ID]["PC"];
     }
 
     bool mem_read = false;
