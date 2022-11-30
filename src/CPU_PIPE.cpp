@@ -357,7 +357,7 @@ bool addr_valid(_word_t vaddr)
 
 bool instr_valid(int icode)
 {
-    return 0 <= icode && icode <= 0xB;
+    return 0 <= icode && icode <= IIADDQ;
 }
 
 bool need_regids(int icode)
@@ -370,6 +370,7 @@ bool need_regids(int icode)
         case IOPQ:
         case IPUSHQ:
         case IPOPQ:
+        case IIADDQ:
             return true;
         default:
             return false;
@@ -383,6 +384,7 @@ bool need_valC(int icode) {
         case IMRMOVQ:
         case IJXX:
         case ICALL:
+        case IIADDQ:
             return true;
         default:
             return false;
@@ -491,7 +493,8 @@ void CPU::decode()
     int srcB;
     if (D.icode == IRMMOVQ ||
         D.icode == IMRMOVQ ||
-        D.icode == IOPQ) {
+        D.icode == IOPQ ||
+        D.icode == IIADDQ) {
             srcB = D.rB;
     }
     else if (D.icode == ICALL ||
@@ -518,7 +521,8 @@ void CPU::decode()
     int dstE;
     if (D.icode == IRRMOVQ ||
         D.icode == IIRMOVQ ||
-        D.icode == IOPQ) {
+        D.icode == IOPQ ||
+        D.icode == IIADDQ) {
             dstE = D.rB;
     }
     else if (D.icode == IPUSHQ ||
@@ -568,7 +572,7 @@ void CPU::execute()
 
     if (E.icode == IRRMOVQ || E.icode == IOPQ) {
         aluA = E.valA;
-    } else if (E.icode == IIRMOVQ || E.icode == IRMMOVQ || E.icode == IMRMOVQ) {
+    } else if (E.icode == IIRMOVQ || E.icode == IRMMOVQ || E.icode == IMRMOVQ || E.icode == IIADDQ) {
         aluA = E.valC;
     } else if (E.icode == ICALL || E.icode == IPUSHQ) {
         aluA = -8;
@@ -582,7 +586,8 @@ void CPU::execute()
         E.icode == ICALL ||
         E.icode == IPUSHQ ||
         E.icode == IRET ||
-        E.icode == IPOPQ) {
+        E.icode == IPOPQ ||
+        E.icode == IIADDQ) {
         aluB = E.valB;
     } else if (E.icode == IRRMOVQ || E.icode == IIRMOVQ) {
         aluB = 0;
@@ -608,7 +613,7 @@ void CPU::execute()
     Mnext.valE = valE;
 
     // set CC & calc CND
-    if (W.stat == SAOK && E.icode == IOPQ) {
+    if (W.stat == SAOK && (E.icode == IOPQ || E.icode == IIADDQ)) {
         if (alufun == ALUADD || alufun == ALUSUB) {
             if (aluA > 0 && aluB > 0 && Mnext.valE < 0 ||
                 aluA < 0 && aluB < 0 && Mnext.valE > 0) {

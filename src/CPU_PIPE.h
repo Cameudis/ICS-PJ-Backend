@@ -21,6 +21,7 @@ enum Ins {
     IHALT,      INOP,       IRRMOVQ,    IIRMOVQ,
     IRMMOVQ,    IMRMOVQ,    IOPQ,       IJXX,
     ICALL,      IRET,       IPUSHQ,     IPOPQ,
+    IIADDQ,
 };
 
 enum ALUCode
