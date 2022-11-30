@@ -2,7 +2,7 @@
 using namespace std;
 
 #include "CPU_PIPE.h"
-static CPU cpu;
+static CPU_PIPE cpu;
 
 // #ifndef NDEBUG
 // #include "api.h"
@@ -30,7 +30,7 @@ int main()
     // assert(debug());    // disappear when build binary
 
     cpu.load_prog(cin);
-    cpu.exec(500);
+    cpu.exec(114514);
     cpu.print_history();
 
     return 0;

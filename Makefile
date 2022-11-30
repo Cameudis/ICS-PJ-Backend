@@ -28,15 +28,11 @@ TARGET_DLL := $(addsuffix .dll,$(BIN_PATH)/$(TARGET_NAME))
 
 # src files & obj files
 SRC := $(foreach x, $(SRC_PATH), $(wildcard $(addprefix $(x)/*,.cpp)))
-SRC := $(filter-out src/CPU_SEQ.cpp,$(SRC))
-SRC := $(filter-out src/CPU_SEQ.h,$(SRC))
 OBJ := $(addprefix $(OBJ_PATH)/, $(addsuffix .o, $(notdir $(basename $(SRC)))))
 OBJ_DLL := $(filter-out obj/main.o,$(OBJ))
 OBJ := $(filter-out obj/api.o,$(OBJ))
 OBJ_DEBUG := $(addprefix $(DBG_PATH)/, $(addsuffix .o, $(notdir $(basename $(SRC)))))
 OBJ_DEBUG := $(filter-out debug/api.o,$(OBJ_DEBUG))
-# OBJ_PIPE := $(filter-out debug/CPU_SEQ.o,$(OBJ))
-# OBJ_SEQ := $(filter-out debug/CPU_PIPE.o,$(OBJ))
 
 # clean files list
 CLEAN_LIST := $(TARGET) $(TARGET_DBG) $(TARGET_DLL) $(OBJ) $(OBJ_DEBUG)

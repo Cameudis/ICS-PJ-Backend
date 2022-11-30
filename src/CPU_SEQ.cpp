@@ -14,12 +14,12 @@ static const char* State_name[] = {
 
 // ---------- init ----------
 
-CPU::CPU()
+CPU_SEQ::CPU_SEQ()
 {
     reset();
 }
 
-void CPU::reset()
+void CPU_SEQ::reset()
 {
     PC = 0;
     Stat = SAOK;
@@ -30,7 +30,7 @@ void CPU::reset()
     RG.clear();
 }
 
-void CPU::load_prog(std::istream& infile)
+void CPU_SEQ::load_prog(std::istream& infile)
 {
     char str[100];
 
@@ -74,7 +74,7 @@ void CPU::load_prog(std::istream& infile)
 
 // ---------- output ----------
 
-void CPU::update_history()
+void CPU_SEQ::update_history()
 {
     json crt;
 
@@ -109,9 +109,29 @@ void CPU::update_history()
     history.push_back(crt);
 }
 
+bool CPU_SEQ::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem)
+{
+    cc[0] = CC.OF;
+    cc[1] = CC.SF;
+    cc[2] = CC.ZF;
+
+    *stat = Stat;
+    *pc = PC;
+
+    for (int i = 0; i < 15; i++) {
+        reg[i] = RG[i];
+    }
+    
+    for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
+        *(_word_t*)mem = DMEM[vaddr];
+    }
+
+    return true;
+}
+
 // ---------- exec ----------
 
-void CPU::exec(unsigned int n)
+void CPU_SEQ::exec(unsigned int n)
 {
     if (Stat != SAOK) {
         // fprintf(stderr, "EXEC FAIL (Stat: %s)\n", State_name[Stat]);
@@ -135,7 +155,7 @@ void CPU::exec(unsigned int n)
     }
 }
 
-bool CPU::back(unsigned int n)
+bool CPU_SEQ::back(unsigned int n)
 {
     unsigned int des_id = history.size() - 1 - n;
     if ((int)des_id < 0) {
@@ -170,25 +190,25 @@ bool CPU::back(unsigned int n)
     return true;
 }
 
-void CPU::im_exec(Instruction ins)
+void CPU_SEQ::im_exec(Instruction ins)
 {
     exec_once(ins);
 }
 
-int CPU::exec_once(Instruction ins)
+int CPU_SEQ::exec_once(Instruction ins)
 {
     int icode = (ins[0]>>4) & 0xF;
 
     return (this->*(instab[icode]))(ins);
 }
 
-int CPU::ins_halt(Instruction ins)
+int CPU_SEQ::ins_halt(Instruction ins)
 {
     Stat = SHLT;
     return 0;
 }
 
-int CPU::ins_nop(Instruction ins)
+int CPU_SEQ::ins_nop(Instruction ins)
 {
 //                              _ooOoo_
 //                             o8888888o
@@ -214,7 +234,7 @@ int CPU::ins_nop(Instruction ins)
     return 1;
 }
 
-int CPU::ins_rrmov(Instruction ins)
+int CPU_SEQ::ins_rrmov(Instruction ins)
 {
     int ifun = ins[0] & 0xF;
     if (calc_cnd(ifun)) {
@@ -225,7 +245,7 @@ int CPU::ins_rrmov(Instruction ins)
     return 2;
 }
 
-int CPU::ins_irmov(Instruction ins)
+int CPU_SEQ::ins_irmov(Instruction ins)
 {
     int rb = ins[1] & 0xF;
     RG[rb] = *(_word_t*)(&ins[2]);
@@ -233,7 +253,7 @@ int CPU::ins_irmov(Instruction ins)
     return 2 + sizeof(_word_t);
 }
 
-int CPU::ins_rmmov(Instruction ins)
+int CPU_SEQ::ins_rmmov(Instruction ins)
 {
     int ra = (ins[1]>>4) & 0xF;
     int rb = ins[1] & 0xF;
@@ -246,7 +266,7 @@ int CPU::ins_rmmov(Instruction ins)
     return 2 + sizeof(_word_t);
 }
 
-int CPU::ins_mrmov(Instruction ins)
+int CPU_SEQ::ins_mrmov(Instruction ins)
 {
     int ra = (ins[1]>>4) & 0xF;
     int rb = ins[1] & 0xF;
@@ -259,7 +279,7 @@ int CPU::ins_mrmov(Instruction ins)
     return 2 + sizeof(_word_t);
 }
 
-int CPU::ins_op(Instruction ins)
+int CPU_SEQ::ins_op(Instruction ins)
 {
     int ifun = ins[0] & 0xF;
     int ra = (ins[1]>>4) & 0xF;
@@ -313,7 +333,7 @@ int CPU::ins_op(Instruction ins)
     return 2;
 }
 
-int CPU::ins_jmp(Instruction ins)
+int CPU_SEQ::ins_jmp(Instruction ins)
 {
     int ifun = ins[0] & 0xF;
 
@@ -325,7 +345,7 @@ int CPU::ins_jmp(Instruction ins)
     }
 }
 
-int CPU::ins_call(Instruction ins)
+int CPU_SEQ::ins_call(Instruction ins)
 {
     RG[rsp] -= sizeof(_word_t);                // update & push rip
     DMEM[RG[rsp]] = PC + 1 + sizeof(_word_t);
@@ -334,7 +354,7 @@ int CPU::ins_call(Instruction ins)
     return 0;
 }
 
-int CPU::ins_ret(Instruction ins)
+int CPU_SEQ::ins_ret(Instruction ins)
 {
     if (!addr_check(RG[rsp]))   return 0;
 
@@ -344,7 +364,7 @@ int CPU::ins_ret(Instruction ins)
     return 0;
 }
 
-int CPU::ins_push(Instruction ins)
+int CPU_SEQ::ins_push(Instruction ins)
 {
     int ra = (ins[1]>>4) & 0xF;
 
@@ -358,7 +378,7 @@ int CPU::ins_push(Instruction ins)
     }
 }
 
-int CPU::ins_pop(Instruction ins)
+int CPU_SEQ::ins_pop(Instruction ins)
 {
     if (!addr_check(RG[rsp]))   return 0;
 
@@ -370,7 +390,7 @@ int CPU::ins_pop(Instruction ins)
     return 2;
 }
 
-int CPU::ins_iadd(Instruction ins)
+int CPU_SEQ::ins_iadd(Instruction ins)
 {
     int rb = ins[1] & 0xF;
     _sword_t a = RG[rb];
@@ -392,13 +412,13 @@ int CPU::ins_iadd(Instruction ins)
     return 2 + sizeof(_word_t);
 }
 
-int CPU::ins_null_handler(Instruction ins)
+int CPU_SEQ::ins_null_handler(Instruction ins)
 {
     Stat = SINS;
     return 0;
 }
 
-bool CPU::calc_cnd(int ifun)
+bool CPU_SEQ::calc_cnd(int ifun)
 {
     bool ret_val = (ifun == 0) ||                                    // no condition
         (ifun == 0x1 && ((CC.SF ^ CC.OF) || (CC.ZF))) ||  // le
@@ -413,7 +433,7 @@ bool CPU::calc_cnd(int ifun)
     return ret_val;
 }
 
-bool CPU::addr_check(_word_t vaddr)
+bool CPU_SEQ::addr_check(_word_t vaddr)
 {
     if (vaddr > MSIZE) {
         Stat = SADR;

@@ -1,31 +1,12 @@
 #ifndef __CPU_SEQ_H
 #define __CPU_SEQ_H
 
-#include "common.h"
-#include "Register.h"
-#include "Memory.h"
-#include <fstream>
+#include "CPU.h"
 
-#include "include/json.hpp"
-using json = nlohmann::json;
-
-enum State {
-    SAOK = 1,    // Normal operation
-    SHLT = 2,    // Halt instruction encountered
-    SADR = 3,    // Invalid address encountered
-    SINS = 4,    // Invalid instruction encountered
-};
-
-struct Condition_code {
-    bool ZF;
-    bool OF;
-    bool SF;
-};
-
-class CPU {
+class CPU_SEQ : public CPU {
 public:
     // --- init ---
-    CPU();
+    CPU_SEQ();
     void reset();
     void load_prog(std::istream& infile);
 
@@ -41,8 +22,11 @@ public:
     void im_exec(Instruction ins);
 
     // --- output ---
+    bool is_SAOK() const { return (history[history.size() - 1]["STAT"]) == SAOK; }
+
     json history;
     void update_history();
+    bool get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem);
 
 private:
 
@@ -64,7 +48,7 @@ private:
     // --- instruction handler ---
      
     // --- instruction ---
-    typedef int (CPU::* InsPtr)(Instruction);
+    typedef int (CPU_SEQ::* InsPtr)(Instruction);
 
     // exec without update PC, return length of ins
     int exec_once(Instruction ins);
@@ -89,22 +73,22 @@ private:
     // --- instruction encode (icode) ---
 
     InsPtr instab[0x10] = {
-        &CPU::ins_halt,         // 0x0
-        &CPU::ins_nop,          // 0x1
-        &CPU::ins_rrmov,        // 0x2
-        &CPU::ins_irmov,        // 0x3
-        &CPU::ins_rmmov,        // 0x4
-        &CPU::ins_mrmov,        // 0x5
-        &CPU::ins_op,           // 0x6
-        &CPU::ins_jmp,          // 0x7
-        &CPU::ins_call,         // 0x8
-        &CPU::ins_ret,          // 0x9
-        &CPU::ins_push,         // 0xa
-        &CPU::ins_pop,          // 0xb
-        &CPU::ins_iadd,         // 0xc
-        &CPU::ins_null_handler,
-        &CPU::ins_null_handler,
-        &CPU::ins_null_handler,
+        &CPU_SEQ::ins_halt,         // 0x0
+        &CPU_SEQ::ins_nop,          // 0x1
+        &CPU_SEQ::ins_rrmov,        // 0x2
+        &CPU_SEQ::ins_irmov,        // 0x3
+        &CPU_SEQ::ins_rmmov,        // 0x4
+        &CPU_SEQ::ins_mrmov,        // 0x5
+        &CPU_SEQ::ins_op,           // 0x6
+        &CPU_SEQ::ins_jmp,          // 0x7
+        &CPU_SEQ::ins_call,         // 0x8
+        &CPU_SEQ::ins_ret,          // 0x9
+        &CPU_SEQ::ins_push,         // 0xa
+        &CPU_SEQ::ins_pop,          // 0xb
+        &CPU_SEQ::ins_iadd,         // 0xc
+        &CPU_SEQ::ins_null_handler,
+        &CPU_SEQ::ins_null_handler,
+        &CPU_SEQ::ins_null_handler,
     };
 
 };

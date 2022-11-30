@@ -1,1 +1,2 @@
 #define MSIZE 0x200
+#define INIT_MODE SEQ_MODE

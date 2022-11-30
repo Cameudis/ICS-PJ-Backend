@@ -9,4 +9,10 @@ typedef uint64_t _word_t;
 typedef int64_t _sword_t;
 typedef uint8_t* Instruction;   // instrction typedef
 
+enum MODE
+{
+    SEQ_MODE,
+    PIPE_MODE
+};
+
 #endif

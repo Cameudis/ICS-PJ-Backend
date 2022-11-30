@@ -16,12 +16,12 @@ static const char* State_name[] = {
 
 // ---------- init ----------
 
-CPU::CPU()
+CPU_PIPE::CPU_PIPE()
 {
     reset();
 }
 
-void CPU::reset()
+void CPU_PIPE::reset()
 {
     CCnext.ZF = CC.ZF = 1;
     CCnext.OF = CC.OF = 0;
@@ -53,7 +53,7 @@ void CPU::reset()
     history_valid.clear();
 }
 
-void CPU::load_prog(std::istream& infile)
+void CPU_PIPE::load_prog(std::istream& infile)
 {
     char str[100];
 
@@ -94,7 +94,7 @@ void CPU::load_prog(std::istream& infile)
 
 // ---------- output ----------
 
-void CPU::update_history()
+void CPU_PIPE::update_history()
 {
     int crt_done = W.history_ID;
     if (crt_done >= 0) {
@@ -128,7 +128,7 @@ void CPU::update_history()
     }
 }
 
-void CPU::print_history()
+void CPU_PIPE::print_history()
 {
     json out_history;
     for (auto i = 0; i <= W.history_ID - 1; i++) {
@@ -139,7 +139,7 @@ void CPU::print_history()
     std::cout << std::setw(4) << out_history << std::endl;
 }
 
-void CPU::debug()
+void CPU_PIPE::debug()
 {
     for (int i = 0; i < 15; i++) {
         printf("%s: %lld\t", RG.get_reg_name(i), RG[i]);
@@ -199,9 +199,39 @@ void CPU::debug()
     printf("---------- ---------- ----------\n\n");
 }
 
+bool CPU_PIPE::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem)
+{
+    auto last_valid = W.history_ID - 1;
+    if (last_valid >= 0) {
+        for (last_valid; history_valid[last_valid] == false; last_valid--)
+            ;
+        if (last_valid < 0)
+            return false;
+    }
+
+    cc[0] = history[last_valid]["CC"]["OF"];
+    cc[1] = history[last_valid]["CC"]["SF"];
+    cc[2] = history[last_valid]["CC"]["ZF"];
+
+    *stat = history[last_valid]["STAT"];
+    *pc = history[last_valid]["PC"];
+
+    for (int i = 0; i < 15; i++) {
+        reg[i] = RG[i];
+    }
+    
+    for (auto &x : history[last_valid]["MEM"].items()) {
+        _word_t vaddr;
+        sscanf(x.key().c_str(), "%lld", &vaddr);
+        ((_word_t *)mem)[vaddr] = x.value();
+    }
+
+    return true;
+}
+
 // ---------- exec ----------
 
-void CPU::exec(unsigned int n)
+void CPU_PIPE::exec(unsigned int n)
 {
     // init pipeline
     if (history.size() == 0) {
@@ -226,7 +256,7 @@ void CPU::exec(unsigned int n)
     }
 }
 
-bool CPU::exec_once()
+bool CPU_PIPE::exec_once()
 {
     if (Stat != SAOK) {
         return false;
@@ -335,7 +365,7 @@ bool CPU::exec_once()
     return true;
 }
 
-bool CPU::calc_cnd(int ifun)
+bool CPU_PIPE::calc_cnd(int ifun)
 {
     bool ret_val = (ifun == 0) ||                           // no condition
         (ifun == 0x1 && ((CC.SF ^ CC.OF) || (CC.ZF))) ||    // le
@@ -391,7 +421,7 @@ bool need_valC(int icode) {
     }
 }
 
-void CPU::fetch()
+void CPU_PIPE::fetch()
 {
     _word_t f_pc;
 
@@ -457,7 +487,7 @@ void CPU::fetch()
     }
 }
 
-void CPU::decode()
+void CPU_PIPE::decode()
 {
     Enext.history_ID = D.history_ID;
     Enext.ins_addr = D.ins_addr;
@@ -549,7 +579,7 @@ void CPU::decode()
 
 }
 
-void CPU::execute()
+void CPU_PIPE::execute()
 {
     Mnext.history_ID = E.history_ID;
     Mnext.ins_addr = E.ins_addr;
@@ -639,7 +669,7 @@ void CPU::execute()
     //     Mnext.dstE = rnull;
 }
 
-void CPU::memoryAccess()
+void CPU_PIPE::memoryAccess()
 {
     Wnext.history_ID = M.history_ID;
     Wnext.ins_addr = M.ins_addr;
@@ -686,7 +716,7 @@ void CPU::memoryAccess()
     Wnext.dstM = M.dstM;
 }
 
-void CPU::writeBack()
+void CPU_PIPE::writeBack()
 {
     if (W.bubble) {
         if (!M.bubble)

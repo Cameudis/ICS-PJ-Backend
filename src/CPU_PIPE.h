@@ -1,47 +1,12 @@
 #ifndef __CPU_PIPE_H
 #define __CPU_PIPE_H
 
-#include "common.h"
-#include "Register.h"
-#include "Memory.h"
-#include <fstream>
-#include <vector>
+#include "CPU.h"
 
-#include "include/json.hpp"
-using json = nlohmann::json;
-
-enum State {
-    SAOK = 1,    // Normal operation
-    SHLT = 2,    // Halt instruction encountered
-    SADR = 3,    // Invalid address encountered
-    SINS = 4,    // Invalid instruction encountered
-};
-
-enum Ins {
-    IHALT,      INOP,       IRRMOVQ,    IIRMOVQ,
-    IRMMOVQ,    IMRMOVQ,    IOPQ,       IJXX,
-    ICALL,      IRET,       IPUSHQ,     IPOPQ,
-    IIADDQ,
-};
-
-enum ALUCode
-{
-    ALUADD,
-    ALUSUB,
-    ALUAND,
-    ALUXOR
-};
-
-struct Condition_code {
-    bool ZF;
-    bool OF;
-    bool SF;
-};
-
-class CPU {
+class CPU_PIPE : public CPU {
 public:
     // --- init ---
-    CPU();
+    CPU_PIPE();
     void reset();
     void load_prog(std::istream& infile);
 
@@ -50,11 +15,18 @@ public:
     // exec n steps, update (json)history and PC
     void exec(unsigned int n);
 
+    // unsupported
+    bool back(unsigned int n) { return false; };
+    void im_exec(Instruction ins){};
+
     // --- output ---
+    bool is_SAOK() const { return Stat == SAOK; }
+
     json history;
     std::vector<bool> history_valid;    // for bubble
     void update_history();
     void print_history();
+    bool get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem);
     void debug();
 
 private:
