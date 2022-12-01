@@ -117,7 +117,7 @@ void CPU_PIPE::update_history()
     int crt_done = W.history_ID;
     if (crt_done >= 0) {
         // PC dump
-        if (!Wnext.bubble) {
+        if (!Wnext.bubble && W.stat == SAOK) {
             history[crt_done]["PC"] = Wnext.ins_addr;
         }
         // REG dump
