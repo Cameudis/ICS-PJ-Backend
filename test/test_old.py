@@ -52,7 +52,11 @@ def main(test, answer):
     if not args.save_mid:
         shutil.rmtree('temp_test')
         shutil.rmtree('temp_answer')
+    
+    fail_count = 0
     for filename, content in res.items():
+        # if filename == "asumi":
+        #     continue
 
         # if MEM's key is str, modify them to int
         if type(list(content[0]["MEM"].keys())[0]) is str:
@@ -66,15 +70,19 @@ def main(test, answer):
 
         if content != answer[filename]:
             print(f"Wrong answer for {filename}")
-            print(f"Your answer: \n{content}")
-            print(f"Correct answer: \n{answer[filename]}")
-            print("Diff:")
-            print(diff_strings(str(answer[filename]), str(content)))
-            return
+            fail_count += 1
+            # print(f"Your answer: \n{content}")
+            # print(f"Correct answer: \n{answer[filename]}")
+            # print("Diff:")
+            # print(diff_strings(str(answer[filename]), str(content)))
+            # return
         else:
             print(f"Pass {filename}")
-            
-    print("All correct!")
+    
+    if fail_count == 0:
+        print("All correct!")
+    else:
+        print(f"\nYou've passed {21-fail_count}/21 tests.")
 
 # https://gist.github.com/ines/04b47597eb9d011ade5e77a068389521
 def diff_strings(a: str, b: str, *, use_loguru_colors: bool = False) -> str:

@@ -3,26 +3,54 @@
 using std::ifstream;
 using std::ofstream;
 
-static CPU cpu;
+static CPU *cpu;
+
+extern "C" bool _DLLExport api_switch_mode(MODE to_mode)
+{
+    mode = to_mode;
+    if (cpu)    delete cpu;
+    if (to_mode == SEQ_MODE) {
+        cpu = new CPU_SEQ;
+    } else if (to_mode == PIPE_MODE) {
+        cpu = new CPU_PIPE;
+    }
+
+    return (cpu != NULL);
+}
 
 extern "C" bool _DLLExport api_load_prog(char* filename)
 {
+    if (!cpu) {
+        if (!api_switch_mode(mode)) {
+            return false;
+        }
+    }
     ifstream ifd(filename);
-    cpu.load_prog(ifd);
+    cpu->load_prog(ifd);
 
     return true;
 }
 
+extern "C" bool _DLLExport api_get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem)
+{
+    return cpu->get_state(cc, stat, pc, reg, mem);
+}
+
 extern "C" bool _DLLExport api_step_exec(unsigned int step)
 {
-    cpu.exec(step);
-    output_crt_state();
-
-    return (cpu.history[cpu.history.size()-1]["STAT"]) == AOK;
+    if (!cpu) {
+        api_switch_mode(mode);
+    }
+    cpu->exec(step);
+    return cpu->is_SAOK();
 }
 
 extern "C" bool _DLLExport api_imm_exec(int64_t part1, int64_t part2)
 {
+    if (mode == PIPE_MODE) {
+        return false;
+    }
+    
     uint8_t ins[10] = {};
     uint8_t *p1 = (uint8_t *)&part1;
     uint8_t *p2 = (uint8_t *)&part2;
@@ -34,15 +62,17 @@ extern "C" bool _DLLExport api_imm_exec(int64_t part1, int64_t part2)
     }
     *(int64_t*)&ins[i] = part2;
 
-    cpu.im_exec(ins);
-    output_crt_state();
+    cpu->im_exec(ins);
     return true;
 }
 
 extern "C" bool _DLLExport api_revoke(int step)
 {
-    if (cpu.back(step)) {
-        output_crt_state();
+    if (mode == PIPE_MODE) {
+        return false;
+    }
+
+    if (cpu->back(step)) {
         return true;
     } else {
         return false;
@@ -51,13 +81,6 @@ extern "C" bool _DLLExport api_revoke(int step)
 
 extern "C" bool _DLLExport api_reset()
 {
-    cpu.reset();
+    cpu->reset();
     return true;
-}
-
-static void output_crt_state()
-{
-    ofstream ofd(STAT_FILE_NAME);
-    ofd << cpu.history[cpu.history.size()-1];
-    ofd.close();
 }
