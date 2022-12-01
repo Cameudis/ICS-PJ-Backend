@@ -31,6 +31,8 @@ public:
 
 private:
 
+    void create_record(_word_t iaddr);
+
     // --- CPU Composition ---
 
     // Programmer-visible States

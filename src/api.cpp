@@ -7,22 +7,26 @@ static CPU *cpu;
 
 extern "C" bool _DLLExport api_switch_mode(MODE to_mode)
 {
-    delete cpu;
+    mode = to_mode;
+    if (cpu)    delete cpu;
     if (to_mode == SEQ_MODE) {
         cpu = new CPU_SEQ;
     } else if (to_mode == PIPE_MODE) {
         cpu = new CPU_PIPE;
     }
+
+    return (cpu != NULL);
 }
 
 extern "C" bool _DLLExport api_load_prog(char* filename)
 {
     if (!cpu) {
-        api_switch_mode(mode);
+        if (!api_switch_mode(mode)) {
+            return false;
+        }
     }
     ifstream ifd(filename);
-    if (mode == SEQ_MODE)
-        cpu->load_prog(ifd);
+    cpu->load_prog(ifd);
 
     return true;
 }
@@ -43,6 +47,10 @@ extern "C" bool _DLLExport api_step_exec(unsigned int step)
 
 extern "C" bool _DLLExport api_imm_exec(int64_t part1, int64_t part2)
 {
+    if (mode == PIPE_MODE) {
+        return false;
+    }
+    
     uint8_t ins[10] = {};
     uint8_t *p1 = (uint8_t *)&part1;
     uint8_t *p2 = (uint8_t *)&part2;
@@ -60,6 +68,10 @@ extern "C" bool _DLLExport api_imm_exec(int64_t part1, int64_t part2)
 
 extern "C" bool _DLLExport api_revoke(int step)
 {
+    if (mode == PIPE_MODE) {
+        return false;
+    }
+
     if (cpu->back(step)) {
         return true;
     } else {

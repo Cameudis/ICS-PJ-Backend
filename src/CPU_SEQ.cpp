@@ -1,5 +1,6 @@
 #include "CPU_SEQ.h"
 #include <cstring>
+#include <iostream>
 #include <map>
 #include <string>
 using std::map; using std::string;
@@ -28,6 +29,7 @@ void CPU_SEQ::reset()
     CC.SF = 0;
     DMEM.clear();
     RG.clear();
+    history.clear();
 }
 
 void CPU_SEQ::load_prog(std::istream& infile)
@@ -68,7 +70,7 @@ void CPU_SEQ::load_prog(std::istream& infile)
         infile.getline(str, 100);
     }
 
-    // update_history();
+    update_history();
     // fprintf(stderr, "Done!\n");
 }
 
@@ -107,6 +109,15 @@ void CPU_SEQ::update_history()
 
     // add to history
     history.push_back(crt);
+}
+
+void CPU_SEQ::print_history()
+{
+    json output;
+    for (int i = 1; i < history.size(); i++) {
+        output.push_back(history[i]);
+    }
+    std::cout << std::setw(4) << output << std::endl;
 }
 
 bool CPU_SEQ::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem)
@@ -180,9 +191,9 @@ bool CPU_SEQ::back(unsigned int n)
 
     map<string, _word_t> mem2val = history[des_id]["MEM"].get<map<string, _word_t>>();
     for (auto& x: mem2val) {
-        _word_t addr;
-        sscanf(x.first.c_str(), "%lld", &addr);
-        DMEM[addr] = x.second;
+        _word_t vaddr;
+        sscanf(x.first.c_str(), "%lld", &vaddr);
+        DMEM[vaddr] = x.second;
     }
 
     // 上白沢慧音 転世「一条戻り橋」

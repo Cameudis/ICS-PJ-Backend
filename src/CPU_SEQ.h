@@ -26,6 +26,7 @@ public:
 
     json history;
     void update_history();
+    void print_history();
     bool get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem);
 
 private:

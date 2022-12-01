@@ -60,6 +60,7 @@ public:
 
     json history;
     virtual void update_history() = 0;
+    virtual void print_history() = 0;
     virtual bool get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem) = 0;
 };
 

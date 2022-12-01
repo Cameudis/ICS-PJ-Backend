@@ -94,10 +94,30 @@ void CPU_PIPE::load_prog(std::istream& infile)
 
 // ---------- output ----------
 
+void CPU_PIPE::create_record(_word_t iaddr)
+{
+    json record;
+    record["PC"] = iaddr;    // temp val, will be update by next AOK instruction(not bubble, not s)
+    for (int i = 0; i < 15; i++) {
+        record["REG"][RG.get_reg_name(i)] = 0;
+    }
+    record["STAT"] = SAOK;
+    record["CC"]["OF"] = 0;
+    record["CC"]["SF"] = 0;
+    record["CC"]["ZF"] = 0;
+    record["MEM"]["0"] = 0;
+    history.push_back(record);
+    history_valid.push_back(true);
+}
+
 void CPU_PIPE::update_history()
 {
     int crt_done = W.history_ID;
     if (crt_done >= 0) {
+        // PC dump
+        if (!Wnext.bubble) {
+            history[crt_done]["PC"] = Wnext.ins_addr;
+        }
         // REG dump
         for (int i = 0; i < 15; i++) {
             history[crt_done]["REG"][RG.get_reg_name(i)] = (int64_t)RG[i];
@@ -201,18 +221,24 @@ void CPU_PIPE::debug()
 
 bool CPU_PIPE::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem)
 {
-    auto last_valid = W.history_ID - 1;
+    int last_valid = Wnext.history_ID - 1;
     if (last_valid >= 0) {
-        for (last_valid; history_valid[last_valid] == false; last_valid--)
+        for (last_valid; last_valid >= 0 && history_valid[last_valid] == false; last_valid--)
             ;
         if (last_valid < 0)
             return false;
+    } else {
+        fprintf(stderr, "No State!\n");
+        return false;
     }
+    
+    // debug
+    // fprintf(stderr, "ID: %d\n", last_valid);
+    // std::cerr << history[last_valid] << std::endl;
 
-    cc[0] = history[last_valid]["CC"]["OF"];
-    cc[1] = history[last_valid]["CC"]["SF"];
-    cc[2] = history[last_valid]["CC"]["ZF"];
-
+    cc[0] = (bool)(int)history[last_valid]["CC"]["OF"];
+    cc[1] = (bool)(int)history[last_valid]["CC"]["SF"];
+    cc[2] = (bool)(int)history[last_valid]["CC"]["ZF"];
     *stat = history[last_valid]["STAT"];
     *pc = history[last_valid]["PC"];
 
@@ -435,10 +461,7 @@ void CPU_PIPE::fetch()
     }
 
     // create history record
-    json record;
-    record["PC"] = f_pc;    // temp val, will be update by next AOK instruction(not bubble, not s)
-    history.push_back(record);
-    history_valid.push_back(true);
+    create_record(f_pc);
 
     Dnext.history_ID = history.size() - 1;
     Dnext.ins_addr = f_pc;
@@ -726,7 +749,7 @@ void CPU_PIPE::writeBack()
             history_valid[W.history_ID] = false;
         }
         return;
-    } else  {
+    } else {
         auto last_valid = W.history_ID - 1;
         if (last_valid >= 0) {
             for (last_valid; history_valid[last_valid] == false; last_valid--)

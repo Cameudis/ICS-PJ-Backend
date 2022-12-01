@@ -12,29 +12,39 @@
 
 // ---------- api ----------
 
-#define STAT_FILE_NAME "crt_state.json"
-
+enum MODE
+{
+    SEQ_MODE,
+    PIPE_MODE
+};
 static MODE mode = INIT_MODE;
 
 // mode switch (will reset all states)
+// return false when fail to create CPU instance (shouldn't happen)
 extern "C" bool _DLLExport api_switch_mode(MODE to_mode);
 
 // give a <*.yo> file
+// return false when fail to create CPU instance (shouldn't happen)
 extern "C" bool _DLLExport api_load_prog(char* filename);
 
 // current state interface
+// return false if no state is available (happen when prog loaded but not exec, please exec(1) and then invoke this func)
 extern "C" bool _DLLExport api_get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem);
 
 // exec <step> steps
+// return false when progress HALT (usually Exception or execute complete)
 extern "C" bool _DLLExport api_step_exec(unsigned int step);
 
-// exec instruction without update PC (only SEQ_MODE)
+// exec instruction without update PC (SEQ_MODE only)
+// return false if mode == PIPE
 extern "C" bool _DLLExport api_imm_exec(int64_t part1, int64_t part2);
 
-// time machine (only SEQ_MODE)
+// time machine (SEQ_MODE only)
+// return false if mode == PIPE or back too much steps
 extern "C" bool _DLLExport api_revoke(int step);
 
 // remake
+// always return true
 extern "C" bool _DLLExport api_reset();
 
 #endif
