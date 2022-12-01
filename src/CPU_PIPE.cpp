@@ -4,7 +4,9 @@
 #include <iostream>
 #include <map>
 #include <string>
-using std::map; using std::string;
+#include <vector>
+#include  <algorithm>
+using std::map; using std::string; using std::vector;
 
 static const char* State_name[] = {
     "NULL",     // 0
@@ -222,14 +224,22 @@ void CPU_PIPE::debug()
 bool CPU_PIPE::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem)
 {
     int last_valid = Wnext.history_ID - 1;
-    if (last_valid >= 0) {
-        for (last_valid; last_valid >= 0 && history_valid[last_valid] == false; last_valid--)
-            ;
-        if (last_valid < 0)
-            return false;
-    } else {
-        fprintf(stderr, "No State!\n");
-        return false;
+    for (last_valid; last_valid >= 0 && history_valid[last_valid] == false; last_valid--)
+        ;
+    if (last_valid < 0) {
+        // output an empty state
+        cc[0] = 0;
+        cc[1] = 0;
+        cc[2] = 1;
+        *stat = SAOK;
+        *pc = 0;
+        for (int i = 0; i < 15; i++) {
+            reg[i] = 0;
+        }
+        for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
+            *(_word_t*)(&mem[vaddr]) = DMEM[vaddr];
+        }
+        return true;
     }
     
     // debug
@@ -246,10 +256,19 @@ bool CPU_PIPE::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t 
         reg[i] = RG[i];
     }
     
+    // MEM DUMP
+    vector<_word_t> addr_record;
     for (auto &x : history[last_valid]["MEM"].items()) {
         _word_t vaddr;
         sscanf(x.key().c_str(), "%lld", &vaddr);
         ((_word_t *)mem)[vaddr] = x.value();
+        addr_record.push_back(vaddr);
+    }
+    // handle 0 value
+    for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
+        if (std::find(addr_record.begin(), addr_record.end(), vaddr) == addr_record.end()) {
+            *(_word_t*)(&mem[vaddr]) = 0;
+        }
     }
 
     return true;

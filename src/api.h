@@ -28,7 +28,7 @@ extern "C" bool _DLLExport api_switch_mode(MODE to_mode);
 extern "C" bool _DLLExport api_load_prog(char* filename);
 
 // current state interface
-// return false if no state is available (happen when prog loaded but not exec, please exec(1) and then invoke this func)
+// always return true
 extern "C" bool _DLLExport api_get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem);
 
 // exec <step> steps
