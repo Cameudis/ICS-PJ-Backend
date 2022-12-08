@@ -3,7 +3,7 @@
 
 #include "CPU.h"
 
-class CPU_PIPE : public CPU {
+class CPU_PIPE: public CPU {
 public:
     // --- init ---
     CPU_PIPE();
@@ -17,7 +17,7 @@ public:
 
     // unsupported
     bool back(unsigned int n) { return false; };
-    void im_exec(Instruction ins){};
+    void im_exec(Instruction ins) {};
 
     // --- output ---
     bool is_SAOK() const { return Stat == SAOK; }
@@ -26,7 +26,7 @@ public:
     std::vector<bool> history_valid;    // for bubble
     void update_history();
     void print_history();
-    bool get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem);
+    bool get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem);
     void debug();
 
 private:
@@ -65,6 +65,7 @@ private:
         // pipeline control
         bool stall;
         bool bubble;
+        bool bp_taken;
 
         // record history
         int history_ID;
@@ -76,8 +77,8 @@ private:
         int icode;
         int ifun;
         _word_t valC;
-        _word_t valA;
-        _word_t valB;
+        _word_t valA;   // E_valA Enext_valA
+        _word_t valB;   // E_valB Enext_valB
         int dstE;
         int dstM;
         int srcA;
@@ -85,6 +86,7 @@ private:
 
         // pipeline control
         bool bubble;
+        bool bp_taken;
 
         // record history
         int history_ID;
@@ -94,6 +96,7 @@ private:
     struct Reg_Memory {
         State stat;
         int icode;
+        int ifun;
         bool Cnd;
         _word_t valE;
         _word_t valA;
@@ -102,6 +105,7 @@ private:
 
         // pipeline control
         bool bubble;
+        bool bp_taken;
 
         // record history
         int history_ID;
@@ -123,9 +127,25 @@ private:
         int history_ID;
         _word_t ins_addr;
     } W, Wnext;
-    
+
     // CND calculator (a part of ALU)
     bool calc_cnd(int icode);
+
+    // Branch Predict (bimodal branch prediction)
+    enum {
+        Never_Taken,
+        Always_Taken,
+        Branch_Predict_Bimodal,
+    } strategy;
+    enum PredictorState {
+        STRONG_TAKEN,       // default
+        WEAK_TAKEN,
+        WEAK_NOT_TAKEN,
+        STRONG_NOT_TAKEN,
+    } bp_buffer[PRED_BUF_SIZE];
+
+    bool branch_predict(_word_t pc);
+    void branch_update(_word_t pc, bool branch);
 
     // --- Execute ---
 

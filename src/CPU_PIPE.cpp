@@ -51,6 +51,9 @@ void CPU_PIPE::reset()
     W.stat = SAOK;
     Wnext.stat = SAOK;
 
+    memset(&bp_buffer, 0, sizeof(bp_buffer));
+    strategy = Branch_Predict_Bimodal;
+
     history.clear();
     history_valid.clear();
 }
@@ -124,7 +127,7 @@ void CPU_PIPE::update_history()
         for (int i = 0; i < 15; i++) {
             history[crt_done]["REG"][RG.get_reg_name(i)] = (int64_t)RG[i];
         }
-        
+
         // STAT dump
         history[crt_done]["STAT"] = W.stat;
     }
@@ -221,7 +224,7 @@ void CPU_PIPE::debug()
     printf("---------- ---------- ----------\n\n");
 }
 
-bool CPU_PIPE::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem)
+bool CPU_PIPE::get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem)
 {
     int last_valid = Wnext.history_ID - 1;
     for (last_valid; last_valid >= 0 && history_valid[last_valid] == false; last_valid--)
@@ -241,7 +244,7 @@ bool CPU_PIPE::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t 
         }
         return true;
     }
-    
+
     // debug
     // fprintf(stderr, "ID: %d\n", last_valid);
     // std::cerr << history[last_valid] << std::endl;
@@ -255,13 +258,13 @@ bool CPU_PIPE::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t 
     for (int i = 0; i < 15; i++) {
         reg[i] = RG[i];
     }
-    
+
     // MEM DUMP
     vector<_word_t> addr_record;
-    for (auto &x : history[last_valid]["MEM"].items()) {
+    for (auto& x : history[last_valid]["MEM"].items()) {
         _word_t vaddr;
         sscanf(x.key().c_str(), "%lld", &vaddr);
-        ((_word_t *)mem)[vaddr] = x.value();
+        ((_word_t*)mem)[vaddr] = x.value();
         addr_record.push_back(vaddr);
     }
     // handle 0 value
@@ -329,25 +332,21 @@ bool CPU_PIPE::exec_once()
         if (Mnext.dstE == Enext.srcA) {
             Enext.valA = Mnext.valE;    // valE from execute
             // puts("Forwarding valA from e_valE");
-        }
-        else if (M.dstM == Enext.srcA) {
+        } else if (M.dstM == Enext.srcA) {
             Enext.valA = Wnext.valM;    // valM from memory
             // puts("Forwarding valA from m_valm");
-        }
-        else if (M.dstE == Enext.srcA) {
+        } else if (M.dstE == Enext.srcA) {
             Enext.valA = M.valE;        // valE from memory
             // puts("Forwarding valA from M_valE");
-        }
-        else if (W.dstM == Enext.srcA) {
+        } else if (W.dstM == Enext.srcA) {
             Enext.valA = W.valM;        // valM from write back
             // puts("Forwarding valA from W_valM");
-        }
-        else if (W.dstE == Enext.srcA) {
+        } else if (W.dstE == Enext.srcA) {
             Enext.valA = W.valE;        // valE from write back
             // puts("Forwarding valA from W.valE");
         }
     }
-    
+
     if (Mnext.dstE == Enext.srcB)
         Enext.valB = Mnext.valE;    // valE from execute
     else if (M.dstM == Enext.srcB)
@@ -375,7 +374,7 @@ bool CPU_PIPE::exec_once()
         Enext.bubble = true;
     }
     // 3. mispredicted branch
-    if (E.icode == IJXX && !Mnext.Cnd) {
+    if (Mnext.icode == IJXX && Mnext.ifun != 0 && (!!E.bp_taken ^ !!Mnext.Cnd)) {
         // std::cout << "Mis-branch Hazard!" << std::endl;
         Dnext.bubble = true;
         Enext.bubble = true;
@@ -389,7 +388,7 @@ bool CPU_PIPE::exec_once()
 
     // enter new cycle
     Stat = W.stat;
-    if (!Fnext.stall)   {
+    if (!Fnext.stall) {
         F = Fnext;
     } else {
         F.predPC = Dnext.ins_addr;
@@ -419,7 +418,7 @@ bool CPU_PIPE::calc_cnd(int ifun)
         (ifun == 0x4 && !CC.ZF) ||                          // ne
         (ifun == 0x5 && !(CC.SF ^ CC.OF)) ||                // ge
         (ifun == 0x6 && (!(CC.SF ^ CC.OF) && !(CC.ZF)));    // g
-        
+
     // fprintf(stderr, "%d(%d): ifun(%d), OF(%d), SF(%d), ZF(%d), RET(%d)\n", PC, history.size(), ifun, CC.OF, CC.SF, CC.ZF, ret_val);
 
     return ret_val;
@@ -438,31 +437,32 @@ bool instr_valid(int icode)
 bool need_regids(int icode)
 {
     switch (icode) {
-        case IRRMOVQ:
-        case IIRMOVQ:
-        case IRMMOVQ:
-        case IMRMOVQ:
-        case IOPQ:
-        case IPUSHQ:
-        case IPOPQ:
-        case IIADDQ:
-            return true;
-        default:
-            return false;
+    case IRRMOVQ:
+    case IIRMOVQ:
+    case IRMMOVQ:
+    case IMRMOVQ:
+    case IOPQ:
+    case IPUSHQ:
+    case IPOPQ:
+    case IIADDQ:
+        return true;
+    default:
+        return false;
     }
 }
 
-bool need_valC(int icode) {
+bool need_valC(int icode)
+{
     switch (icode) {
-        case IIRMOVQ:
-        case IRMMOVQ:
-        case IMRMOVQ:
-        case IJXX:
-        case ICALL:
-        case IIADDQ:
-            return true;
-        default:
-            return false;
+    case IIRMOVQ:
+    case IRMMOVQ:
+    case IMRMOVQ:
+    case IJXX:
+    case ICALL:
+    case IIADDQ:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -471,8 +471,17 @@ void CPU_PIPE::fetch()
     _word_t f_pc;
 
     // select pc
-    if (M.icode == IJXX && !M.Cnd) {   // mispredicted cjmp
-        f_pc = M.valA;
+    if (M.icode == IJXX && M.ifun != 0) {   // conditional jmp
+        branch_update(M.ins_addr, M.Cnd);
+        if ((!!M.bp_taken ^ !!M.Cnd)) { // mispredicted
+            if (M.Cnd) {
+                f_pc = M.valE;  // valC
+            } else {
+                f_pc = M.valA;  // valP
+            }
+        } else {                            // predict right
+            f_pc = F.predPC;
+        }
     } else if (W.icode == IRET) {       // ret
         f_pc = W.valM;
     } else {
@@ -522,8 +531,16 @@ void CPU_PIPE::fetch()
     Dnext.valP = DMEM.r2vaddr(ins_ptr);
 
     // predict PC
-    if (Dnext.icode == IJXX || Dnext.icode == ICALL) {
+    if ((Dnext.icode == IJXX && Dnext.ifun == 0) || Dnext.icode == ICALL) { // normal jmp&call
         Fnext.predPC = Dnext.valC;
+    } else if (Dnext.icode == IJXX && Dnext.ifun != 0) {    // conditional jmp
+        if (branch_predict(f_pc)) {
+            Fnext.predPC = Dnext.valC;
+            Dnext.bp_taken = true;
+        } else {
+            Fnext.predPC = Dnext.valP;
+            Dnext.bp_taken = false;
+        }
     } else {
         Fnext.predPC = Dnext.valP;
     }
@@ -533,6 +550,7 @@ void CPU_PIPE::decode()
 {
     Enext.history_ID = D.history_ID;
     Enext.ins_addr = D.ins_addr;
+    Enext.bp_taken = D.bp_taken;
 
     if (D.bubble == true) {
         Enext.icode = INOP;
@@ -548,17 +566,15 @@ void CPU_PIPE::decode()
     Enext.valC = D.valC;
 
     int srcA;
-    if (D.icode == IRRMOVQ || 
-        D.icode == IRMMOVQ || 
-        D.icode == IOPQ || 
-        D.icode == IPUSHQ){
-            srcA = D.rA;
-    }
-    else if (D.icode == IPOPQ ||
-             D.icode == IRET) {
-                srcA = rsp;
-    }
-    else {
+    if (D.icode == IRRMOVQ ||
+        D.icode == IRMMOVQ ||
+        D.icode == IOPQ ||
+        D.icode == IPUSHQ) {
+        srcA = D.rA;
+    } else if (D.icode == IPOPQ ||
+        D.icode == IRET) {
+        srcA = rsp;
+    } else {
         srcA = rnull;
     }
 
@@ -567,15 +583,13 @@ void CPU_PIPE::decode()
         D.icode == IMRMOVQ ||
         D.icode == IOPQ ||
         D.icode == IIADDQ) {
-            srcB = D.rB;
-    }
-    else if (D.icode == ICALL ||
-             D.icode == IRET ||
-             D.icode == IPUSHQ ||
-             D.icode == IPOPQ) {
-                srcB = rsp;
-    }
-    else {
+        srcB = D.rB;
+    } else if (D.icode == ICALL ||
+        D.icode == IRET ||
+        D.icode == IPUSHQ ||
+        D.icode == IPOPQ) {
+        srcB = rsp;
+    } else {
         srcB = rnull;
     }
 
@@ -595,24 +609,21 @@ void CPU_PIPE::decode()
         D.icode == IIRMOVQ ||
         D.icode == IOPQ ||
         D.icode == IIADDQ) {
-            dstE = D.rB;
-    }
-    else if (D.icode == IPUSHQ ||
-             D.icode == IPOPQ ||
-             D.icode == ICALL ||
-             D.icode == IRET) {
-                dstE = rsp;
-    }
-    else {
+        dstE = D.rB;
+    } else if (D.icode == IPUSHQ ||
+        D.icode == IPOPQ ||
+        D.icode == ICALL ||
+        D.icode == IRET) {
+        dstE = rsp;
+    } else {
         dstE = rnull;
     }
 
     int dstM;
     if (D.icode == IMRMOVQ ||
         D.icode == IPOPQ) {
-            dstM = D.rA;
-    }
-    else {
+        dstM = D.rA;
+    } else {
         dstM = rnull;
     }
 
@@ -625,7 +636,8 @@ void CPU_PIPE::execute()
 {
     Mnext.history_ID = E.history_ID;
     Mnext.ins_addr = E.ins_addr;
-    
+    Mnext.bp_taken = E.bp_taken;
+
     if (E.bubble == true) {
         Mnext.icode = INOP;
         Mnext.stat = SAOK;
@@ -637,6 +649,7 @@ void CPU_PIPE::execute()
 
     Mnext.stat = E.stat;
     Mnext.icode = E.icode;
+    Mnext.ifun = E.ifun;
     Mnext.valA = E.valA;
 
     _word_t aluA = 0;
@@ -644,7 +657,7 @@ void CPU_PIPE::execute()
 
     if (E.icode == IRRMOVQ || E.icode == IOPQ) {
         aluA = E.valA;
-    } else if (E.icode == IIRMOVQ || E.icode == IRMMOVQ || E.icode == IMRMOVQ || E.icode == IIADDQ) {
+    } else if (E.icode == IIRMOVQ || E.icode == IRMMOVQ || E.icode == IMRMOVQ || E.icode == IIADDQ || E.icode == IJXX) {
         aluA = E.valC;
     } else if (E.icode == ICALL || E.icode == IPUSHQ) {
         aluA = -8;
@@ -661,7 +674,7 @@ void CPU_PIPE::execute()
         E.icode == IPOPQ ||
         E.icode == IIADDQ) {
         aluB = E.valB;
-    } else if (E.icode == IRRMOVQ || E.icode == IIRMOVQ) {
+    } else if (E.icode == IRRMOVQ || E.icode == IIRMOVQ || E.icode == IJXX) {
         aluB = 0;
     }
 
@@ -715,7 +728,7 @@ void CPU_PIPE::memoryAccess()
 {
     Wnext.history_ID = M.history_ID;
     Wnext.ins_addr = M.ins_addr;
-    
+
     if (M.bubble == true) {
         Wnext.icode = INOP;
         Wnext.stat = SAOK;
@@ -750,7 +763,7 @@ void CPU_PIPE::memoryAccess()
     if (mem_write) {
         DMEM[mem_addr] = M.valA;
     }
-  
+
     Wnext.icode = M.icode;
     Wnext.valE = M.valE;
     Wnext.valM = DMEM[mem_addr];
@@ -780,4 +793,50 @@ void CPU_PIPE::writeBack()
 
     RG[W.dstE] = W.valE;
     RG[W.dstM] = W.valM;
+}
+
+// ---------- branch predict ----------
+
+bool CPU_PIPE::branch_predict(_word_t pc)
+{
+    switch (strategy) {
+    case Never_Taken:
+        return false;
+    case Always_Taken:
+        return true;
+    case Branch_Predict_Bimodal:
+        PredictorState state = bp_buffer[pc % PRED_BUF_SIZE];
+        if (state == STRONG_TAKEN || state == WEAK_TAKEN) {
+            return true;
+        } else if (state == STRONG_NOT_TAKEN || state == WEAK_NOT_TAKEN) {
+            return false;
+        }
+    }
+}
+
+void CPU_PIPE::branch_update(_word_t pc, bool branch)
+{
+    if (strategy != Branch_Predict_Bimodal) return;
+
+    int index = pc % PRED_BUF_SIZE;
+    PredictorState state = this->bp_buffer[index];
+    if (branch) {
+        if (state == STRONG_NOT_TAKEN) {
+            this->bp_buffer[index] = WEAK_NOT_TAKEN;
+        } else if (state == WEAK_NOT_TAKEN) {
+            this->bp_buffer[index] = WEAK_TAKEN;
+        } else if (state == WEAK_TAKEN) {
+            this->bp_buffer[index] = STRONG_TAKEN;
+        }
+        // do nothing if STRONG_TAKEN
+    } else {        // not taken
+        if (state == STRONG_TAKEN) {
+            this->bp_buffer[index] = WEAK_TAKEN;
+        } else if (state == WEAK_TAKEN) {
+            this->bp_buffer[index] = WEAK_NOT_TAKEN;
+        } else if (state == WEAK_NOT_TAKEN) {
+            this->bp_buffer[index] = STRONG_NOT_TAKEN;
+        }
+        // do noting if STRONG_NOT_TAKEN
+    }
 }
