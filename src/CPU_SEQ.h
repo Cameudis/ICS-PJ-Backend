@@ -3,7 +3,7 @@
 
 #include "CPU.h"
 
-class CPU_SEQ : public CPU {
+class CPU_SEQ: public CPU {
 public:
     // --- init ---
     CPU_SEQ();
@@ -27,7 +27,8 @@ public:
     json history;
     void update_history();
     void print_history();
-    bool get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem);
+    bool get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem);
+    void get_PRstate(char* fbuf, char* dbuf, char* ebuf, char* mbuf, char* wbuf) { ; }
 
 private:
 
@@ -39,15 +40,15 @@ private:
     State Stat;
     Condition_code CC;
     Register RG;
-    
+
     // CND calculator (a part of ALU)
     bool calc_cnd(int icode);
-    
+
     // maybe a part of CPU...? Whatever
     bool addr_check(_word_t vaddr);
 
     // --- instruction handler ---
-     
+
     // --- instruction ---
     typedef int (CPU_SEQ::* InsPtr)(Instruction);
 

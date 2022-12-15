@@ -5,16 +5,9 @@
 #include <map>
 #include <string>
 #include <vector>
-#include  <algorithm>
+#include <algorithm>
 using std::map; using std::string; using std::vector;
 
-static const char* State_name[] = {
-    "NULL",     // 0
-    "AOK",      // 1
-    "HLT",      // 2
-    "ADR",      // 3
-    "INS"       // 4
-};
 
 // ---------- init ----------
 
@@ -52,7 +45,12 @@ void CPU_PIPE::reset()
     Wnext.stat = SAOK;
 
     memset(&bp_buffer, 0, sizeof(bp_buffer));
-    strategy = Branch_Predict_Bimodal;
+    strategy = BPStrategy;
+
+#ifdef BPTEST
+    correct_pred = 0;
+    mispred = 0;
+#endif
 
     history.clear();
     history_valid.clear();
@@ -98,71 +96,6 @@ void CPU_PIPE::load_prog(std::istream& infile)
 }
 
 // ---------- output ----------
-
-void CPU_PIPE::create_record(_word_t iaddr)
-{
-    json record;
-    record["PC"] = iaddr;    // temp val, will be update by next AOK instruction(not bubble, not s)
-    for (int i = 0; i < 15; i++) {
-        record["REG"][RG.get_reg_name(i)] = 0;
-    }
-    record["STAT"] = SAOK;
-    record["CC"]["OF"] = 0;
-    record["CC"]["SF"] = 0;
-    record["CC"]["ZF"] = 0;
-    record["MEM"]["0"] = 0;
-    history.push_back(record);
-    history_valid.push_back(true);
-}
-
-void CPU_PIPE::update_history()
-{
-    int crt_done = W.history_ID;
-    if (crt_done >= 0) {
-        // PC dump
-        if (!Wnext.bubble && W.stat == SAOK) {
-            history[crt_done]["PC"] = Wnext.ins_addr;
-        }
-        // REG dump
-        for (int i = 0; i < 15; i++) {
-            history[crt_done]["REG"][RG.get_reg_name(i)] = (int64_t)RG[i];
-        }
-
-        // STAT dump
-        history[crt_done]["STAT"] = W.stat;
-    }
-
-    // CC dump
-    if (E.history_ID >= 0) {
-        history[E.history_ID]["CC"]["OF"] = (int)CCnext.OF;
-        history[E.history_ID]["CC"]["SF"] = (int)CCnext.SF;
-        history[E.history_ID]["CC"]["ZF"] = (int)CCnext.ZF;
-    }
-
-
-    // MEM dump
-    if (M.history_ID >= 0) {
-        for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
-            if (DMEM[vaddr]) {
-                char vaddr_str[10];
-                sprintf(vaddr_str, "%lld", vaddr);
-
-                history[M.history_ID]["MEM"][vaddr_str] = (int64_t)DMEM[vaddr];
-            }
-        }
-    }
-}
-
-void CPU_PIPE::print_history()
-{
-    json out_history;
-    for (auto i = 0; i <= W.history_ID - 1; i++) {
-        if (history_valid[i])
-            out_history.push_back(history[i]);
-    }
-
-    std::cout << std::setw(4) << out_history << std::endl;
-}
 
 void CPU_PIPE::debug()
 {
@@ -224,6 +157,77 @@ void CPU_PIPE::debug()
     printf("---------- ---------- ----------\n\n");
 }
 
+void CPU_PIPE::create_record(_word_t iaddr)
+{
+    json record;
+    record["PC"] = iaddr;    // temp val, will be update by next AOK instruction(not bubble, not s)
+    for (int i = 0; i < 15; i++) {
+        record["REG"][RG.get_reg_name(i)] = 0;
+    }
+    record["STAT"] = SAOK;
+    record["CC"]["OF"] = 0;
+    record["CC"]["SF"] = 0;
+    record["CC"]["ZF"] = 0;
+    record["MEM"]["0"] = 0;
+    history.push_back(record);
+    history_valid.push_back(true);
+}
+
+void CPU_PIPE::update_history()
+{
+    int crt_done = W.history_ID;
+    if (crt_done >= 0) {
+        // PC dump (kind of PC forwarding)
+        if (!Wnext.bubble && W.stat == SAOK) {
+            history[crt_done]["PC"] = Wnext.ins_addr;
+        }
+
+        // REG dump
+        for (int i = 0; i < 15; i++) {
+            history[crt_done]["REG"][RG.get_reg_name(i)] = (int64_t)RG[i];
+        }
+
+        // STAT dump
+        history[crt_done]["STAT"] = W.stat;
+    }
+
+    // CC dump
+    if (E.history_ID >= 0) {
+        history[E.history_ID]["CC"]["OF"] = (int)CCnext.OF;
+        history[E.history_ID]["CC"]["SF"] = (int)CCnext.SF;
+        history[E.history_ID]["CC"]["ZF"] = (int)CCnext.ZF;
+    }
+
+
+    // MEM dump
+    if (M.history_ID >= 0) {
+        for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
+            if (DMEM[vaddr]) {
+                char vaddr_str[10];
+                sprintf(vaddr_str, "%lld", vaddr);
+
+                history[M.history_ID]["MEM"][vaddr_str] = (int64_t)DMEM[vaddr];
+            }
+        }
+    }
+}
+
+void CPU_PIPE::print_history()
+{
+    json out_history;
+    for (auto i = 0; i <= W.history_ID - 1; i++) {
+        if (history_valid[i])
+            out_history.push_back(history[i]);
+    }
+
+#ifdef BPTEST
+    int pred_sum = correct_pred + mispred;
+    fprintf(stderr, "Branch Predict: %f%% (%d/%d)\n", 100 * (double)correct_pred / pred_sum, correct_pred, pred_sum);
+#endif
+
+    std::cout << std::setw(4) << out_history << std::endl;
+}
+
 bool CPU_PIPE::get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem)
 {
     int last_valid = Wnext.history_ID - 1;
@@ -277,6 +281,130 @@ bool CPU_PIPE::get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t*
     return true;
 }
 
+void CPU_PIPE::get_PRstate(char* fbuf, char* dbuf, char* ebuf, char* mbuf, char* wbuf)
+{
+    // execute state
+    char fs, ds, es, ms, ws;
+    fs = ds = es = ms = ws = 'N';
+
+    if (F.stall)        fs = 'S';
+    if (D.stall)        ds = 'S';
+    else if (D.bubble)  ds = 'B';
+    if (E.bubble)       es = 'B';
+    if (M.bubble)       ms = 'B';
+    if (W.bubble)       ws = 'B';
+
+    char ffstr[] = "%c\n"
+        "predPC: %llx\n";
+
+    char dfstr[] = "%c\n"
+        "addr: %llx\n"
+        "stat: %d (%s)\n"
+        "icode: 0x%x (%s)\n"
+        "ifun: 0x%x\n"
+        "rA: 0x%x (%s)\n"
+        "rB: 0x%x (%s)\n"
+        "valC: 0x%llx\n"
+        "valP: 0x%llx\n";
+
+    char efstr[] = "%c\n"
+        "addr: %llx\n"
+        "stat: %d (%s)\n"
+        "icode: 0x%x (%s)\n"
+        "ifun: 0x%x\n"
+        "valC: 0x%llx\n"
+        "valA: 0x%llx\n"
+        "valB: 0x%llx\n"
+        "dstE: 0x%x (%s)\n"
+        "dstM: 0x%x (%s)\n"
+        "srcA: 0x%x (%s)\n"
+        "srcB: 0x%x (%s)\n";
+
+    char mfstr[] = "%c\n"
+        "addr: %llx\n"
+        "stat: %d (%s)\n"
+        "icode: 0x%x (%s)\n"
+        "Cnd: %d\n"
+        "valE: 0x%llx\n"
+        "valA: 0x%llx\n"
+        "dstE: 0x%x (%s)\n"
+        "dstM: 0x%x (%s)\n";
+
+    char wfstr[] = "%c\n"
+        "addr: %llx\n"
+        "stat: %d (%s)\n"
+        "icode: 0x%x (%s)\n"
+        "valE: 0x%llx\n"
+        "valM: 0x%llx\n"
+        "dstE: 0x%x (%s)\n"
+        "dstM: 0x%x (%s)\n";
+
+    sprintf(fbuf, ffstr, fs, F.predPC);
+    sprintf(dbuf, dfstr, ds, D.ins_addr, D.stat, State_name[D.stat], D.icode, Ins_name[D.icode], D.ifun, D.rA, RG.get_reg_name(D.rA), D.rB, RG.get_reg_name(D.rB), D.valC, D.valP);
+    sprintf(ebuf, efstr, es, E.ins_addr, E.stat, State_name[E.stat], E.icode, Ins_name[E.icode], E.ifun, E.valC, E.valA, E.valB, E.dstE, RG.get_reg_name(E.dstE), E.dstM, RG.get_reg_name(E.dstM), E.srcA, RG.get_reg_name(E.srcA), E.srcB, RG.get_reg_name(E.srcB));
+    sprintf(mbuf, mfstr, ms, M.ins_addr, M.stat, State_name[M.stat], M.icode, Ins_name[M.icode], CC, M.valE, M.valA, M.dstE, RG.get_reg_name(M.dstE), M.dstM, RG.get_reg_name(M.dstM));
+    sprintf(wbuf, wfstr, ws, W.ins_addr, W.stat, State_name[W.stat], W.icode, Ins_name[W.icode], W.valE, W.valM, W.dstE, RG.get_reg_name(W.dstE), W.dstM, RG.get_reg_name(W.dstM));
+}
+
+// ---------- tools ----------
+
+bool CPU_PIPE::calc_cnd(int ifun)
+{
+    bool ret_val = (ifun == 0) ||                           // no condition
+        (ifun == 0x1 && ((CC.SF ^ CC.OF) || (CC.ZF))) ||    // le
+        (ifun == 0x2 && (CC.SF ^ CC.OF)) ||                 // l
+        (ifun == 0x3 && CC.ZF) ||                           // e
+        (ifun == 0x4 && !CC.ZF) ||                          // ne
+        (ifun == 0x5 && !(CC.SF ^ CC.OF)) ||                // ge
+        (ifun == 0x6 && (!(CC.SF ^ CC.OF) && !(CC.ZF)));    // g
+
+    // fprintf(stderr, "%d(%d): ifun(%d), OF(%d), SF(%d), ZF(%d), RET(%d)\n", PC, history.size(), ifun, CC.OF, CC.SF, CC.ZF, ret_val);
+
+    return ret_val;
+}
+
+bool addr_valid(_word_t vaddr)
+{
+    return vaddr <= MSIZE;
+}
+
+bool instr_valid(int icode)
+{
+    return 0 <= icode && icode <= IIADDQ;
+}
+
+bool need_regids(int icode)
+{
+    switch (icode) {
+    case IRRMOVQ:
+    case IIRMOVQ:
+    case IRMMOVQ:
+    case IMRMOVQ:
+    case IOPQ:
+    case IPUSHQ:
+    case IPOPQ:
+    case IIADDQ:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool need_valC(int icode)
+{
+    switch (icode) {
+    case IIRMOVQ:
+    case IRMMOVQ:
+    case IMRMOVQ:
+    case IJXX:
+    case ICALL:
+    case IIADDQ:
+        return true;
+    default:
+        return false;
+    }
+}
+
 // ---------- exec ----------
 
 void CPU_PIPE::exec(unsigned int n)
@@ -292,15 +420,15 @@ void CPU_PIPE::exec(unsigned int n)
         M.history_ID = -1;
         W.bubble = true;
         W.history_ID = -1;
-
-        for (int i = 0; i < 4; i++)
-            exec_once();
     }
 
     // execute
     for (unsigned int i = 0; i < n; i++) {
         if (!exec_once())
             break;
+        // while (W.bubble) {
+        //     exec_once();
+        // }
     }
 }
 
@@ -400,70 +528,13 @@ bool CPU_PIPE::exec_once()
         // handle stall
         D.history_ID = Dnext.history_ID;
         Dnext.stall = false;
-        Dnext.bubble = false;
+        Dnext.bubble = false;   // stall's priority > bubble's priority
     }
     E = Enext;
     M = Mnext;
     W = Wnext;
 
     return true;
-}
-
-bool CPU_PIPE::calc_cnd(int ifun)
-{
-    bool ret_val = (ifun == 0) ||                           // no condition
-        (ifun == 0x1 && ((CC.SF ^ CC.OF) || (CC.ZF))) ||    // le
-        (ifun == 0x2 && (CC.SF ^ CC.OF)) ||                 // l
-        (ifun == 0x3 && CC.ZF) ||                           // e
-        (ifun == 0x4 && !CC.ZF) ||                          // ne
-        (ifun == 0x5 && !(CC.SF ^ CC.OF)) ||                // ge
-        (ifun == 0x6 && (!(CC.SF ^ CC.OF) && !(CC.ZF)));    // g
-
-    // fprintf(stderr, "%d(%d): ifun(%d), OF(%d), SF(%d), ZF(%d), RET(%d)\n", PC, history.size(), ifun, CC.OF, CC.SF, CC.ZF, ret_val);
-
-    return ret_val;
-}
-
-bool addr_valid(_word_t vaddr)
-{
-    return vaddr <= MSIZE;
-}
-
-bool instr_valid(int icode)
-{
-    return 0 <= icode && icode <= IIADDQ;
-}
-
-bool need_regids(int icode)
-{
-    switch (icode) {
-    case IRRMOVQ:
-    case IIRMOVQ:
-    case IRMMOVQ:
-    case IMRMOVQ:
-    case IOPQ:
-    case IPUSHQ:
-    case IPOPQ:
-    case IIADDQ:
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool need_valC(int icode)
-{
-    switch (icode) {
-    case IIRMOVQ:
-    case IRMMOVQ:
-    case IMRMOVQ:
-    case IJXX:
-    case ICALL:
-    case IIADDQ:
-        return true;
-    default:
-        return false;
-    }
 }
 
 void CPU_PIPE::fetch()
@@ -473,13 +544,19 @@ void CPU_PIPE::fetch()
     // select pc
     if (M.icode == IJXX && M.ifun != 0) {   // conditional jmp
         branch_update(M.ins_addr, M.Cnd);
-        if ((!!M.bp_taken ^ !!M.Cnd)) { // mispredicted
+        if ((!!M.bp_taken ^ !!M.Cnd)) {     // mispredicted
+#ifdef BPTEST
+            mispred++;
+#endif
             if (M.Cnd) {
                 f_pc = M.valE;  // valC
             } else {
                 f_pc = M.valA;  // valP
             }
         } else {                            // predict right
+#ifdef BPTEST
+            correct_pred++;
+#endif
             f_pc = F.predPC;
         }
     } else if (W.icode == IRET) {       // ret

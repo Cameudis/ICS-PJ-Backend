@@ -27,6 +27,7 @@ public:
     void update_history();
     void print_history();
     bool get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem);
+    void get_PRstate(char* fbuf, char* dbuf, char* ebuf, char* mbuf, char* wbuf);
     void debug();
 
 private:
@@ -138,8 +139,8 @@ private:
         Branch_Predict_Bimodal,
     } strategy;
     enum PredictorState {
-        STRONG_TAKEN,       // default
-        WEAK_TAKEN,
+        WEAK_TAKEN,         // default
+        STRONG_TAKEN,
         WEAK_NOT_TAKEN,
         STRONG_NOT_TAKEN,
     } bp_buffer[PRED_BUF_SIZE];
@@ -147,9 +148,13 @@ private:
     bool branch_predict(_word_t pc);
     void branch_update(_word_t pc, bool branch);
 
+#ifdef BPTEST
+    unsigned int correct_pred;
+    unsigned int mispred;
+#endif
+
     // --- Execute ---
 
-    // exec without update PC, return length of ins
     bool exec_once();
 
     void fetch();

@@ -18,7 +18,7 @@ void print_info(int i)
 
 int main()
 {
-    ifstream ansin("case/asumi.json");
+    ifstream ansin("case/asum.json");
     ansin >> ans;
     ansin.close();
 

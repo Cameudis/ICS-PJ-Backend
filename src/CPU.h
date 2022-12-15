@@ -17,15 +17,29 @@ enum State {
     SINS = 4,    // Invalid instruction encountered
 };
 
+static const char* State_name[] = {
+    "NULL",     // 0
+    "AOK",      // 1
+    "HLT",      // 2
+    "ADR",      // 3
+    "INS"       // 4
+};
+
 enum Ins {
-    IHALT,      INOP,       IRRMOVQ,    IIRMOVQ,
-    IRMMOVQ,    IMRMOVQ,    IOPQ,       IJXX,
-    ICALL,      IRET,       IPUSHQ,     IPOPQ,
+    IHALT, INOP, IRRMOVQ, IIRMOVQ,
+    IRMMOVQ, IMRMOVQ, IOPQ, IJXX,
+    ICALL, IRET, IPUSHQ, IPOPQ,
     IIADDQ,
 };  // P.S. SEQ use a function pointer table to code instructions
 
-enum ALUCode
-{
+static const char* Ins_name[]{
+    "IHALT", "INOP", "IRRMOVQ", "IIRMOVQ",
+    "IRMMOVQ", "IMRMOVQ", "IOPQ", "IJXX",
+    "ICALL", "IRET", "IPUSHQ", "IPOPQ",
+    "IIADDQ",
+};
+
+enum ALUCode {
     ALUADD,
     ALUSUB,
     ALUAND,
@@ -48,7 +62,7 @@ public:
 
     // exec n steps, update (json)history and PC
     virtual void exec(unsigned int n) = 0;
-    
+
     // back n steps, recover (json)history and all states
     virtual bool back(unsigned int n) = 0;
 
@@ -61,7 +75,8 @@ public:
     json history;
     virtual void update_history() = 0;
     virtual void print_history() = 0;
-    virtual bool get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem) = 0;
+    virtual bool get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem) = 0;
+    virtual void get_PRstate(char* fbuf, char* dbuf, char* ebuf, char* mbuf, char* wbuf) = 0;
 };
 
 #endif
