@@ -12,8 +12,7 @@
 
 // ---------- api ----------
 
-enum MODE
-{
+enum MODE {
     SEQ_MODE,
     PIPE_MODE
 };
@@ -29,7 +28,11 @@ extern "C" bool _DLLExport api_load_prog(char* filename);
 
 // current state interface
 // always return true
-extern "C" bool _DLLExport api_get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem);
+extern "C" bool _DLLExport api_get_state(bool* cc, int* stat, _word_t * pc, _word_t * reg, int8_t * mem);
+
+// pipeline register information interface (PIPE_MODE only)
+// return false if mode != PIPE
+extern "C" bool _DLLExport api_get_PRstate(char* fetch, char* decode, char* execute, char* memory, char* writeback);
 
 // exec <step> steps
 // return false when progress HALT (usually Exception or execute complete)

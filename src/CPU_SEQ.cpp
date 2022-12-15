@@ -5,14 +5,6 @@
 #include <string>
 using std::map; using std::string;
 
-static const char* State_name[] = {
-    "NULL",     // 0
-    "AOK",      // 1
-    "HLT",      // 2
-    "ADR",      // 3
-    "INS"       // 4
-};
-
 // ---------- init ----------
 
 CPU_SEQ::CPU_SEQ()
@@ -120,7 +112,7 @@ void CPU_SEQ::print_history()
     std::cout << std::setw(4) << output << std::endl;
 }
 
-bool CPU_SEQ::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *mem)
+bool CPU_SEQ::get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem)
 {
     cc[0] = CC.OF;
     cc[1] = CC.SF;
@@ -132,7 +124,7 @@ bool CPU_SEQ::get_state(bool *cc, int *stat, _word_t *pc, _word_t *reg, int8_t *
     for (int i = 0; i < 15; i++) {
         reg[i] = RG[i];
     }
-    
+
     for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
         *(_word_t*)mem = DMEM[vaddr];
     }
@@ -190,25 +182,26 @@ bool CPU_SEQ::back(unsigned int n)
     Stat = history[des_id]["STAT"];
 
     map<string, _word_t> mem2val = history[des_id]["MEM"].get<map<string, _word_t>>();
-    for (auto& x: mem2val) {
+    for (auto& x : mem2val) {
         _word_t vaddr;
         sscanf(x.first.c_str(), "%lld", &vaddr);
         DMEM[vaddr] = x.second;
     }
 
     // 上白沢慧音 転世「一条戻り橋」
-    history.erase(history.begin()+ des_id + 1, history.end());
+    history.erase(history.begin() + des_id + 1, history.end());
     return true;
 }
 
 void CPU_SEQ::im_exec(Instruction ins)
 {
     exec_once(ins);
+    update_history();
 }
 
 int CPU_SEQ::exec_once(Instruction ins)
 {
-    int icode = (ins[0]>>4) & 0xF;
+    int icode = (ins[0] >> 4) & 0xF;
 
     return (this->*(instab[icode]))(ins);
 }
@@ -221,27 +214,27 @@ int CPU_SEQ::ins_halt(Instruction ins)
 
 int CPU_SEQ::ins_nop(Instruction ins)
 {
-//                              _ooOoo_
-//                             o8888888o
-//                             88" . "88
-//                             (| -_- |)
-//                              O\ = /O
-//                           ____/`---'\____
-//                        .   ' \\| |// `.
-//                         / \\||| : |||// \
-//                        / _||||| -:- |||||- \
-//                         | | \\\ - /// | |
-//                       | \_| ''\---/'' | |
-//                        \ .-\__ `-` ___/-. /
-//                    ___`. .' /--.--\ `. . __
-//                  ."" '< `.___\_<|>_/___.' >'"".
-//                 | | : `- \`.;`\ _ /`;.`/ - ` : | |
-//                    \ \ `-. \_ __\ /__ _/ .-` / /
-//           ======`-.____`-.___\_____/___.-`____.-'======
-//                              `=---='
-//
-//           .............................................
-//                     佛祖保佑             永无BUG
+    //                              _ooOoo_
+    //                             o8888888o
+    //                             88" . "88
+    //                             (| -_- |)
+    //                              O\ = /O
+    //                           ____/`---'\____
+    //                        .   ' \\| |// `.
+    //                         / \\||| : |||// \
+    //                        / _||||| -:- |||||- \
+    //                         | | \\\ - /// | |
+    //                       | \_| ''\---/'' | |
+    //                        \ .-\__ `-` ___/-. /
+    //                    ___`. .' /--.--\ `. . __
+    //                  ."" '< `.___\_<|>_/___.' >'"".
+    //                 | | : `- \`.;`\ _ /`;.`/ - ` : | |
+    //                    \ \ `-. \_ __\ /__ _/ .-` / /
+    //           ======`-.____`-.___\_____/___.-`____.-'======
+    //                              `=---='
+    //
+    //           .............................................
+    //                     佛祖保佑             永无BUG
     return 1;
 }
 
@@ -249,7 +242,7 @@ int CPU_SEQ::ins_rrmov(Instruction ins)
 {
     int ifun = ins[0] & 0xF;
     if (calc_cnd(ifun)) {
-        int ra = (ins[1]>>4) & 0xF;
+        int ra = (ins[1] >> 4) & 0xF;
         int rb = ins[1] & 0xF;
         RG[rb] = RG[ra];
     }
@@ -266,10 +259,10 @@ int CPU_SEQ::ins_irmov(Instruction ins)
 
 int CPU_SEQ::ins_rmmov(Instruction ins)
 {
-    int ra = (ins[1]>>4) & 0xF;
+    int ra = (ins[1] >> 4) & 0xF;
     int rb = ins[1] & 0xF;
     _word_t offset = *(_word_t*)(&ins[2]);
-    
+
     if (!addr_check(offset + RG[rb]))   return 0;
 
     DMEM[offset + RG[rb]] = RG[ra];
@@ -279,12 +272,12 @@ int CPU_SEQ::ins_rmmov(Instruction ins)
 
 int CPU_SEQ::ins_mrmov(Instruction ins)
 {
-    int ra = (ins[1]>>4) & 0xF;
+    int ra = (ins[1] >> 4) & 0xF;
     int rb = ins[1] & 0xF;
     _word_t offset = *(_word_t*)(&ins[2]);
 
     if (!addr_check(offset + RG[rb]))   return 0;
-    
+
     RG[ra] = DMEM[offset + RG[rb]];
 
     return 2 + sizeof(_word_t);
@@ -293,47 +286,47 @@ int CPU_SEQ::ins_mrmov(Instruction ins)
 int CPU_SEQ::ins_op(Instruction ins)
 {
     int ifun = ins[0] & 0xF;
-    int ra = (ins[1]>>4) & 0xF;
+    int ra = (ins[1] >> 4) & 0xF;
     int rb = ins[1] & 0xF;
 
     _sword_t a = RG[ra];
     _sword_t b = RG[rb];
     _sword_t result;
     switch (ifun) {
-        case 0x0:
-            result = b + a;
-            if (a > 0 && b > 0 && result < 0 ||
-                a < 0 && b < 0 && result > 0) {
-                CC.OF = 1;
-            } else {
-                CC.OF = 0;
-            }
-
-            // fprintf(stderr, "%d(%d): %lld + %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
-            break;
-        case 0x1:
-            result = b - a;
-            if (a < 0 && b > 0 && result < 0 ||
-                a > 0 && b < 0 && result > 0) {
-                CC.OF = 1;
-            } else {
-                CC.OF = 0;
-            }
-            // fprintf(stderr, "%d(%d): %lld - %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
-            break;
-        case 0x2:
-            result = a & b;
+    case 0x0:
+        result = b + a;
+        if (a > 0 && b > 0 && result < 0 ||
+            a < 0 && b < 0 && result > 0) {
+            CC.OF = 1;
+        } else {
             CC.OF = 0;
-            // fprintf(stderr, "%d(%d): %lld & %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
-            break;
-        case 0x3:
-            result = a ^ b;
-            CC.OF = 0;
-            // fprintf(stderr, "%d(%d): %lld ^ %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
-            break;
+        }
 
-        default:
-            assert(0);
+        // fprintf(stderr, "%d(%d): %lld + %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
+        break;
+    case 0x1:
+        result = b - a;
+        if (a < 0 && b > 0 && result < 0 ||
+            a > 0 && b < 0 && result > 0) {
+            CC.OF = 1;
+        } else {
+            CC.OF = 0;
+        }
+        // fprintf(stderr, "%d(%d): %lld - %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
+        break;
+    case 0x2:
+        result = a & b;
+        CC.OF = 0;
+        // fprintf(stderr, "%d(%d): %lld & %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
+        break;
+    case 0x3:
+        result = a ^ b;
+        CC.OF = 0;
+        // fprintf(stderr, "%d(%d): %lld ^ %lld = %lld\n", PC, history.size(), b, a, RG[rb]);
+        break;
+
+    default:
+        assert(0);
     }
     RG[rb] = result;
 
@@ -377,7 +370,7 @@ int CPU_SEQ::ins_ret(Instruction ins)
 
 int CPU_SEQ::ins_push(Instruction ins)
 {
-    int ra = (ins[1]>>4) & 0xF;
+    int ra = (ins[1] >> 4) & 0xF;
 
     if (!addr_check(RG[rsp] - sizeof(_word_t))) {
         RG[rsp] -= sizeof(_word_t);
@@ -393,7 +386,7 @@ int CPU_SEQ::ins_pop(Instruction ins)
 {
     if (!addr_check(RG[rsp]))   return 0;
 
-    int ra = (ins[1]>>4) & 0xF;
+    int ra = (ins[1] >> 4) & 0xF;
 
     RG[rsp] += sizeof(_word_t);
     RG[ra] = DMEM[RG[rsp] - sizeof(_word_t)];
@@ -431,14 +424,14 @@ int CPU_SEQ::ins_null_handler(Instruction ins)
 
 bool CPU_SEQ::calc_cnd(int ifun)
 {
-    bool ret_val = (ifun == 0) ||                                    // no condition
-        (ifun == 0x1 && ((CC.SF ^ CC.OF) || (CC.ZF))) ||  // le
-        (ifun == 0x2 && (CC.SF ^ CC.OF)) ||              // l
-        (ifun == 0x3 && CC.ZF) ||                        // e
-        (ifun == 0x4 && !CC.ZF) ||                       // ne
-        (ifun == 0x5 && !(CC.SF ^ CC.OF)) ||             // ge
-        (ifun == 0x6 && (!(CC.SF ^ CC.OF) && !(CC.ZF)));   // g
-        
+    bool ret_val = (ifun == 0) ||                           // no condition
+        (ifun == 0x1 && ((CC.SF ^ CC.OF) || (CC.ZF))) ||    // le
+        (ifun == 0x2 && (CC.SF ^ CC.OF)) ||                 // l
+        (ifun == 0x3 && CC.ZF) ||                           // e
+        (ifun == 0x4 && !CC.ZF) ||                          // ne
+        (ifun == 0x5 && !(CC.SF ^ CC.OF)) ||                // ge
+        (ifun == 0x6 && (!(CC.SF ^ CC.OF) && !(CC.ZF)));    // g
+
     // fprintf(stderr, "%d(%d): ifun(%d), OF(%d), SF(%d), ZF(%d), RET(%d)\n", PC, history.size(), ifun, CC.OF, CC.SF, CC.ZF, ret_val);
 
     return ret_val;
