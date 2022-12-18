@@ -287,18 +287,18 @@ void CPU_PIPE::get_PRstate(char* fbuf, char* dbuf, char* ebuf, char* mbuf, char*
     char fs, ds, es, ms, ws;
     fs = ds = es = ms = ws = 'N';
 
-    if (F.stall)        fs = 'S';
-    if (D.stall)        ds = 'S';
+    if (Fnext.stall)    fs = 'S';
+    if (Dnext.stall)    ds = 'S';
     else if (D.bubble)  ds = 'B';
     if (E.bubble)       es = 'B';
     if (M.bubble)       ms = 'B';
     if (W.bubble)       ws = 'B';
 
     char ffstr[] = "%c\n"
-        "predPC: %llx\n";
+        "predPC: 0x%llx\n";
 
     char dfstr[] = "%c\n"
-        "addr: %llx\n"
+        "addr: 0x%llx\n"
         "stat: %d (%s)\n"
         "icode: 0x%x (%s)\n"
         "ifun: 0x%x\n"
@@ -308,7 +308,7 @@ void CPU_PIPE::get_PRstate(char* fbuf, char* dbuf, char* ebuf, char* mbuf, char*
         "valP: 0x%llx\n";
 
     char efstr[] = "%c\n"
-        "addr: %llx\n"
+        "addr: 0x%llx\n"
         "stat: %d (%s)\n"
         "icode: 0x%x (%s)\n"
         "ifun: 0x%x\n"
@@ -321,7 +321,7 @@ void CPU_PIPE::get_PRstate(char* fbuf, char* dbuf, char* ebuf, char* mbuf, char*
         "srcB: 0x%x (%s)\n";
 
     char mfstr[] = "%c\n"
-        "addr: %llx\n"
+        "addr: 0x%llx\n"
         "stat: %d (%s)\n"
         "icode: 0x%x (%s)\n"
         "Cnd: %d\n"
@@ -331,7 +331,7 @@ void CPU_PIPE::get_PRstate(char* fbuf, char* dbuf, char* ebuf, char* mbuf, char*
         "dstM: 0x%x (%s)\n";
 
     char wfstr[] = "%c\n"
-        "addr: %llx\n"
+        "addr: 0x%llx\n"
         "stat: %d (%s)\n"
         "icode: 0x%x (%s)\n"
         "valE: 0x%llx\n"
@@ -342,7 +342,7 @@ void CPU_PIPE::get_PRstate(char* fbuf, char* dbuf, char* ebuf, char* mbuf, char*
     sprintf(fbuf, ffstr, fs, F.predPC);
     sprintf(dbuf, dfstr, ds, D.ins_addr, D.stat, State_name[D.stat], D.icode, Ins_name[D.icode], D.ifun, D.rA, RG.get_reg_name(D.rA), D.rB, RG.get_reg_name(D.rB), D.valC, D.valP);
     sprintf(ebuf, efstr, es, E.ins_addr, E.stat, State_name[E.stat], E.icode, Ins_name[E.icode], E.ifun, E.valC, E.valA, E.valB, E.dstE, RG.get_reg_name(E.dstE), E.dstM, RG.get_reg_name(E.dstM), E.srcA, RG.get_reg_name(E.srcA), E.srcB, RG.get_reg_name(E.srcB));
-    sprintf(mbuf, mfstr, ms, M.ins_addr, M.stat, State_name[M.stat], M.icode, Ins_name[M.icode], CC, M.valE, M.valA, M.dstE, RG.get_reg_name(M.dstE), M.dstM, RG.get_reg_name(M.dstM));
+    sprintf(mbuf, mfstr, ms, M.ins_addr, M.stat, State_name[M.stat], M.icode, Ins_name[M.icode], M.Cnd, M.valE, M.valA, M.dstE, RG.get_reg_name(M.dstE), M.dstM, RG.get_reg_name(M.dstM));
     sprintf(wbuf, wfstr, ws, W.ins_addr, W.stat, State_name[W.stat], W.icode, Ins_name[W.icode], W.valE, W.valM, W.dstE, RG.get_reg_name(W.dstE), W.dstM, RG.get_reg_name(W.dstM));
 }
 
@@ -445,7 +445,7 @@ bool CPU_PIPE::exec_once()
     writeBack();
 
     // a part of Execute
-    // these behavior require Wnext.stat (actually m_stat)
+    // these behavior require Wnext.stat (m_stat)
     // so must be done after state:memoryAccess
     if (Wnext.stat == SAOK) {
         CC = CCnext;
@@ -455,38 +455,11 @@ bool CPU_PIPE::exec_once()
         Mnext.dstE = rnull;
     }
 
-    // Forwarding
-    if (D.icode != ICALL && D.icode != IJXX) {
-        if (Mnext.dstE == Enext.srcA) {
-            Enext.valA = Mnext.valE;    // valE from execute
-            // puts("Forwarding valA from e_valE");
-        } else if (M.dstM == Enext.srcA) {
-            Enext.valA = Wnext.valM;    // valM from memory
-            // puts("Forwarding valA from m_valm");
-        } else if (M.dstE == Enext.srcA) {
-            Enext.valA = M.valE;        // valE from memory
-            // puts("Forwarding valA from M_valE");
-        } else if (W.dstM == Enext.srcA) {
-            Enext.valA = W.valM;        // valM from write back
-            // puts("Forwarding valA from W_valM");
-        } else if (W.dstE == Enext.srcA) {
-            Enext.valA = W.valE;        // valE from write back
-            // puts("Forwarding valA from W.valE");
-        }
-    }
-
-    if (Mnext.dstE == Enext.srcB)
-        Enext.valB = Mnext.valE;    // valE from execute
-    else if (M.dstM == Enext.srcB)
-        Enext.valB = Wnext.valM;    // valM from memory
-    else if (M.dstE == Enext.srcB)
-        Enext.valB = M.valE;        // valE from memory
-    else if (W.dstM == Enext.srcB)
-        Enext.valB = W.valM;        // valM from write back
-    else if (W.dstE == Enext.srcB)
-        Enext.valB = W.valE;        // valE from write back
-
     // handling special cases
+    // clear previous stall
+    Fnext.stall = false;
+    Dnext.stall = false;
+
     // 1. ret hazard
     if (D.icode == IRET || E.icode == IRET || M.icode == IRET) {
         // std::cout << "Ret Hazard!" << std::endl;
@@ -508,6 +481,32 @@ bool CPU_PIPE::exec_once()
         Enext.bubble = true;
     }
 
+    // Forwarding
+    if (D.icode != ICALL && D.icode != IJXX) {
+        if (Mnext.dstE == Enext.srcA && !Mnext.bubble) {
+            Enext.valA = Mnext.valE;    // valE from execute
+        } else if (M.dstM == Enext.srcA && !Wnext.bubble) {
+            Enext.valA = Wnext.valM;    // valM from memory
+        } else if (M.dstE == Enext.srcA && !M.bubble) {
+            Enext.valA = M.valE;        // valE from memory
+        } else if (W.dstM == Enext.srcA && !W.bubble) {
+            Enext.valA = W.valM;        // valM from write back
+        } else if (W.dstE == Enext.srcA && !W.bubble) {
+            Enext.valA = W.valE;        // valE from write back
+        }
+    }
+
+    if (Mnext.dstE == Enext.srcB && !Mnext.bubble)
+        Enext.valB = Mnext.valE;    // valE from execute
+    else if (M.dstM == Enext.srcB && !Wnext.bubble)
+        Enext.valB = Wnext.valM;    // valM from memory
+    else if (M.dstE == Enext.srcB && !M.bubble)
+        Enext.valB = M.valE;        // valE from memory
+    else if (W.dstM == Enext.srcB && !W.bubble)
+        Enext.valB = W.valM;        // valM from write back
+    else if (W.dstE == Enext.srcB && !W.bubble)
+        Enext.valB = W.valE;        // valE from write back
+
     // update history
     update_history();
 
@@ -520,14 +519,12 @@ bool CPU_PIPE::exec_once()
         F = Fnext;
     } else {
         F.predPC = Dnext.ins_addr;
-        Fnext.stall = false;
     }
     if (!Dnext.stall) {
         D = Dnext;
     } else {
         // handle stall
         D.history_ID = Dnext.history_ID;
-        Dnext.stall = false;
         Dnext.bubble = false;   // stall's priority > bubble's priority
     }
     E = Enext;

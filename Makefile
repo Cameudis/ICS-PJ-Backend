@@ -37,6 +37,9 @@ OBJ_DEBUG := $(filter-out debug/api.o,$(OBJ_DEBUG))
 # clean files list
 CLEAN_LIST := $(TARGET) $(TARGET_DBG) $(TARGET_DLL) $(OBJ) $(OBJ_DEBUG)
 
+# default rule
+default: makedir all
+
 # non-phony targets
 $(TARGET): $(OBJ)
 	$(CXX) $(OBJ) $(CXXFLAGS) $(NDBGFLAG) -o $@
@@ -53,9 +56,6 @@ $(OBJ_PATH)/%.o: $(SRC_PATH)/%.cpp
 $(DBG_PATH)/%.o: $(SRC_PATH)/%.cpp
 	$(CXX) $(COBJFLAGS) $(DBGFLAGS) -o $@ $<
 
-# default rule
-default: makedir all
-
 
 # phony rules
 .PHONY: makedir
@@ -63,7 +63,7 @@ makedir:
 	@mkdir -p $(BIN_PATH) $(OBJ_PATH) $(DBG_PATH)
 
 .PHONY: all
-all: $(TARGET)
+all: makedir $(TARGET)
 
 .PHONY: debug
 debug: makedir $(TARGET_DBG)

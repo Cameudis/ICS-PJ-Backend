@@ -1,7 +1,7 @@
 // Max Size of Memory
-#define MSIZE 0x200
+#define MSIZE 0x400
 
-// api init_mode (PART II related)
+// api init_mode (PART II related) PIPE_MODE/SEQ_MODE
 #define INIT_MODE SEQ_MODE
 
 // ---------- Branch Predict Settings ----------
@@ -10,7 +10,7 @@
 #define BPStrategy Always_Taken
 
 // output BP accuracy in stderr
-#define BPTEST
+// #define BPTEST
 
 // Bimodal setting
 #define PRED_BUF_SIZE 32

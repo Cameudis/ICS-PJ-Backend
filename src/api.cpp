@@ -7,24 +7,24 @@ static CPU* cpu;
 
 extern "C" bool _DLLExport api_switch_mode(MODE to_mode)
 {
-    mode = to_mode;
     if (cpu)    delete cpu;
+    
     if (to_mode == SEQ_MODE) {
         cpu = new CPU_SEQ;
     } else if (to_mode == PIPE_MODE) {
         cpu = new CPU_PIPE;
     }
-
+    
+    mode = to_mode;
     return (cpu != NULL);
 }
 
 extern "C" bool _DLLExport api_load_prog(char* filename)
 {
-    if (!cpu) {
-        if (!api_switch_mode(mode)) {
-            return false;
-        }
+    if (!cpu && !api_switch_mode(mode)) {
+        return false;
     }
+    
     ifstream ifd(filename);
     cpu->load_prog(ifd);
 
@@ -47,9 +47,10 @@ extern "C" bool _DLLExport api_get_PRstate(char* fetch, char* decode, char* exec
 
 extern "C" bool _DLLExport api_step_exec(unsigned int step)
 {
-    if (!cpu) {
-        api_switch_mode(mode);
+    if (!cpu && !api_switch_mode(mode)) {
+        return false;
     }
+    
     cpu->exec(step);
     return cpu->is_SAOK();
 }

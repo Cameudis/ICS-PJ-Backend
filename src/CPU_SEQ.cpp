@@ -125,9 +125,7 @@ bool CPU_SEQ::get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* 
         reg[i] = RG[i];
     }
 
-    for (_word_t vaddr = 0; vaddr < MSIZE; vaddr += 8) {
-        *(_word_t*)mem = DMEM[vaddr];
-    }
+    memcpy(mem, DMEM.v2raddr(0), MSIZE);
 
     return true;
 }

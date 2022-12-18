@@ -24,11 +24,13 @@ public:
 
     json history;
     std::vector<bool> history_valid;    // for bubble
+
     void update_history();
     void print_history();
+    void debug();
+
     bool get_state(bool* cc, int* stat, _word_t* pc, _word_t* reg, int8_t* mem);
     void get_PRstate(char* fbuf, char* dbuf, char* ebuf, char* mbuf, char* wbuf);
-    void debug();
 
 private:
 

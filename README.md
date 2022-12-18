@@ -13,6 +13,7 @@ ICS-PJ-Backend
 ├── case            # 存放测试用例
 ├── src             # 存放源码
     └── include         # 存放第三方库
+├── dll             # 存放用于生成dll的VS项目
 ├── Makefile
 └── README.md       # 项目说明
 ```
