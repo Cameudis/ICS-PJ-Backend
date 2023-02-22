@@ -1,6 +1,7 @@
 # ICS-PJ-Backend
 
-FUDAN ICS 2022Fall Project - Y86 Simulator
+A Y86-64 CPU Simulator
+FUDAN ICS 2022Fall Project
 
 ## Project Structure
 
